@@ -1,0 +1,746 @@
+﻿"key";"title";"area";"type";"size";"milestone";"milestone_due";"depends_on";"labels";"body"
+"SET-01";"Set up repository, project board, local environment and logs";"setup";"setup";"M";"M0 Setup, spikes and interfaces";"2026-10-23";"";"area:setup,type:setup,size:M,ready";"**SET-01** · Area: Setup and spikes · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Organisation `Org-DAT160`, repository `dat160-group11-semesterproject` and project board `DAT160 Semesterproject - Group 11`, repository housekeeping, work logs, the test-run log and a local Python 3.8 environment for developing and testing `core/` without the VM.
+
+## Acceptance criteria
+
+- [ ] All members have write access to the repository and the board
+- [ ] Board columns Backlog, Ready, In progress, In review, Done; issues created with `tools/create_issues.py`
+- [ ] Branch protection on `main`, or an agreed pull-request rule where protection is not available
+- [ ] `.gitignore` covers build/, install/, log/, __pycache__/, .idea/, venv/ and local/; `.gitattributes` sets `* text=auto eol=lf`
+- [ ] `docs/worklog/<name>.md` exists for every member
+- [ ] `docs/test_runs.md` with columns: date, commit, world, score, time, markers found, meeting, real-time factor, failures
+- [ ] Python 3.8 virtual environment with `pytest`, `numpy==1.17.4` (the VM version), `pyyaml` and `pillow` on each member's machine
+
+## Depends on
+
+- None
+
+## References
+
+- README.md: Development workflow, Testing
+- ARCHITECTURE.md §1 (R10), §14"
+"SET-02";"Set up ROS 2 Foxy in the VM and run the course world with scoring";"setup";"setup";"M";"M0 Setup, spikes and interfaces";"2026-10-23";"";"area:setup,type:setup,size:M,ready";"**SET-02** · Area: Setup and spikes · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Install the dependencies, clone `ros2_students_25`, copy the scoring world files and the Gazebo models, build the course packages, run world w1 with scoring and measure the simulation speed.
+
+## Acceptance criteria
+
+- [ ] `printenv ROS_DISTRO` returns `foxy`
+- [ ] World files copied from `multi_robot_scoring/worlds/` (scoring plugin present) and models installed
+- [ ] The five course packages listed in the README built with `colcon build --packages-select`
+- [ ] `ros2 launch multi_robot_challenge_23 rescue_robots_w1.launch.py` shows both robots, and `aruco_node` publishes `/tb3_0/aruco_markers` when a marker is in view
+- [ ] Working `opencv-contrib-python` version recorded in the README
+- [ ] `ros2 run scoring scoring` prints the marker positions and does not hang
+- [ ] Real-time factor (`gz stats`) recorded with the Gazebo GUI on and off
+- [ ] Log checked: the two course `marker_recognition` nodes with the same name only give a warning
+
+## Depends on
+
+- None
+
+## References
+
+- README.md: Installation
+- ARCHITECTURE.md §2, §15 Q5"
+"SET-03";"Create package skeletons, `rescue_interfaces` and type aliases";"setup";"setup";"M";"M0 Setup, spikes and interfaces";"2026-10-23";"SET-02";"area:setup,type:setup,size:M,impl:ai-allowed";"**SET-03** · Area: Setup and spikes · Size: M · Owner: shared
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+Both packages generated with `ros2 pkg create` and the folder layout from docs/CODE_STRUCTURE.md; `NavigateTo.action` and `FoundMarker.msg` exactly as in ARCHITECTURE.md §4; the type aliases `Point`, `Cell` and `CostFn` in `core/geometry.py`. `rescue_interfaces` is frozen after M0.
+
+## Acceptance criteria
+
+- [ ] `rescue_interfaces` (`ament_cmake`) and `rescue_team` (`ament_python`) build with `colcon build`
+- [ ] `setup.py` uses `find_packages(exclude=['test'])` and installs `launch/` and `config/`
+- [ ] Entry points `leader`, `robot_handler` and `marker_detector` start empty nodes that log one line
+- [ ] `ros2 interface show` shows both interfaces as specified
+- [ ] Type aliases written with `typing`, so they work on Python 3.8
+- [ ] `test_copyright.py` removed; `python3 -m pytest test/` and `colcon test` run in the VM
+
+## Depends on
+
+- SET-02
+
+## References
+
+- ARCHITECTURE.md §4, §12
+- docs/CODE_STRUCTURE.md: Where the code comes from, core/geometry.py"
+"SET-04";"Create `config/params.yaml` and `launch/rescue.launch.py`";"setup";"setup";"M";"M1 Navigation and detection on w1";"2026-11-01";"SET-03";"area:setup,type:setup,size:M,impl:ai-allowed,owner:B";"**SET-04** · Area: Setup and spikes · Size: M · Owner: B: robot node and perception (geometry, lidar, controller, robot_handler, marker_detector, launch, parameters)
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+All parameters from ARCHITECTURE.md §13 in one shared block, and a launch file generalised from `rescue_robots_w1.launch.py` that starts the chosen world and our nodes.
+
+## Acceptance criteria
+
+- [ ] `params.yaml` holds all parameters from ARCHITECTURE.md §13 in one `/**: ros__parameters:` block
+- [ ] Launch arguments `variant`, `start_world`, `scoring`, `rviz`, `gui`, `leader` and `use_sim_time` work as described in the README
+- [ ] With `start_world:=true`: Gazebo with the variant's world file, `map_server` with its map and `nav2_lifecycle_manager` (autostart), and both robots spawned through the course `spawn_robot.launch.py` with the variant's spawn poses, resolved in one `OpaqueFunction`; RViz only with `rviz:=true`
+- [ ] `start_world:=false` starts only our nodes
+- [ ] One `robot_handler` per namespace, one `marker_detector` and, unless `leader:=false`, one `leader`, all with `params.yaml`, the same `robots` list and `use_sim_time`
+- [ ] `scoring:=true` starts scoring after the robots have spawned
+- [ ] Works for all five variants
+
+## Depends on
+
+- SET-03
+
+## References
+
+- ARCHITECTURE.md §2, §3, §13
+- docs/CODE_STRUCTURE.md: Launch and configuration
+- README.md: Running"
+"SPK-01";"Spike: odometry frame, TF lookup from a Python node, lidar offset and scoring behaviour";"setup";"spike";"S";"M0 Setup, spikes and interfaces";"2026-10-23";"SET-02";"area:setup,type:spike,size:S";"**SPK-01** · Area: Setup and spikes · Size: S · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Compare `/tb3_0/odom` with the spawn pose and the Gazebo model pose, look up a camera transform at an image timestamp from a Python node without a namespace, measure the lidar ray origin, and call `/set_marker_position` by hand. Spike scripts go in `local/`.
+
+## Acceptance criteria
+
+- [ ] Odometry result recorded in ARCHITECTURE.md §2 and §15 Q1; if `/odom` is not the ground-truth pose in `map`, a follow-up issue is created before M1
+- [ ] Transform `map ← tb3_0/camera_rgb_optical_frame` looked up at the stamp of an `aruco_markers` message from a node without a namespace
+- [ ] Lidar ray origin measured against a wall at a known distance; `lidar_offset_x` (−0.064 m or −0.128 m) recorded in ARCHITECTURE.md §13
+- [ ] Scoring behaviour on accept, reject, repeated report and `z = 0` recorded
+
+## Depends on
+
+- SET-02
+
+## References
+
+- ARCHITECTURE.md §2, §7.1, §15 Q1"
+"SPK-02";"Spike: marker detection envelope, position accuracy and spin speed";"setup";"spike";"M";"M0 Setup, spikes and interfaces";"2026-10-23";"SET-02";"area:setup,type:spike,size:M";"**SPK-02** · Area: Setup and spikes · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Drive past one marker at several distances and angles, and rotate in front of it at several speeds, comparing detections and estimated positions with the ground truth printed by scoring.
+
+## Acceptance criteria
+
+- [ ] Minimum and maximum detection distance and the maximum angle to the marker normal measured
+- [ ] Position error versus distance tabulated; `marker_max_range` chosen
+- [ ] Highest rotation rate with reliable detection measured; `spin_speed` chosen
+- [ ] `viewpoint_spacing` chosen from the envelope (1.5 m unless the envelope is smaller)
+- [ ] Values recorded in ARCHITECTURE.md §13
+
+## Depends on
+
+- SET-02
+
+## References
+
+- ARCHITECTURE.md §2, §7, §8.3, §15 Q2"
+"NAV-01";"Implement geometry helpers, lidar helpers and `GoToPointController`";"navigation";"core";"M";"M1 Navigation and detection on w1";"2026-11-01";"SET-03";"area:navigation,type:core,size:M,impl:ai-allowed,owner:B";"**NAV-01** · Area: Navigation · Size: M · Owner: B: robot node and perception (geometry, lidar, controller, robot_handler, marker_detector, launch, parameters)
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+`core/geometry.py` and `core/lidar.py` as pure functions, and the go-to-point controller from assignment A3a refactored into a class without `rclpy`.
+
+## Acceptance criteria
+
+- [ ] Functions and class as specified in docs/CODE_STRUCTURE.md
+- [ ] `scan_to_points` ignores invalid readings (`inf`, `nan`, out of range) and applies `lidar_offset_x`; `sector_min` handles sectors that wrap around angle 0
+- [ ] `GoToPointController` turns in place when the heading error is above `turn_threshold`, otherwise drives with `v = min(max_linear_speed, distance_gain · d)`; `ω` clamped to `max_angular_speed`
+- [ ] `test_geometry.py`: `wrap_angle`, `yaw_from_quaternion`, `rotate` and `transform_point` against hand-computed cases
+
+## Depends on
+
+- SET-03
+
+## References
+
+- ARCHITECTURE.md §6.4, §6.5, §7.1
+- docs/CODE_STRUCTURE.md: core/geometry.py, core/lidar.py, core/controller.py"
+"NAV-02";"Implement `GridMap`";"navigation";"core";"M";"M1 Navigation and detection on w1";"2026-11-01";"";"area:navigation,type:core,size:M,impl:own,owner:A,ready";"**NAV-02** · Area: Navigation · Size: M · Owner: A: navigation algorithms (grid, distance transform, paths, two-robot rules, marker register, viewpoints, allocation)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+Planning grid from occupancy grid data or a map file, coordinate conversion, downsampling where a coarse cell is occupied if any sub-cell is, circular inflation and the known-wall check.
+
+## Acceptance criteria
+
+- [ ] Members as specified in docs/CODE_STRUCTURE.md: core/grid.py
+- [ ] Course maps of w1–w5 copied to `test/data/`
+- [ ] Unknown cells are occupied; `from_yaml` flips the image rows and imports Pillow inside the function
+- [ ] Tests: round trip cell → world → cell, a known wall of w1 lands at its metric position (row flip), downsampling and inflation on hand-made grids, `is_known_wall`
+- [ ] w1 downsampled from 2000 × 2000 to 200 × 200 and inflated in well under a second
+
+## Depends on
+
+- None
+
+## References
+
+- ARCHITECTURE.md §6.1
+- docs/CODE_STRUCTURE.md: core/grid.py"
+"NAV-03";"Implement the distance transform, the planner and path simplification";"navigation";"core";"L";"M1 Navigation and detection on w1";"2026-11-01";"NAV-02 SET-03";"area:navigation,type:core,size:L,impl:own,owner:A";"**NAV-03** · Area: Navigation · Size: L · Owner: A: navigation algorithms (grid, distance transform, paths, two-robot rules, marker register, viewpoints, allocation)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+Distance transform as in Corke, chapter 5: cost field from a set of source cells by repeated relaxation over the 8-neighbourhood, distance to the nearest wall, steepest descent, snapping to the nearest free cell, the planner with temporary discs around `avoid` points, line-of-sight simplification and the progress monitor used for stuck detection.
+
+## Acceptance criteria
+
+- [ ] `cost_field`, `wall_distance`, `descend`, `nearest_free_cell`, `cost_at` and `DistanceTransformPlanner` in `core/distance_transform.py`; `cells_to_points`, `line_of_sight`, `simplify_path`, `remaining_length` and `ProgressMonitor` in `core/path.py`
+- [ ] Steps `h` and `√2·h`; a diagonal step only if both orthogonal neighbours are free, in the field and in the descent; blocked and unreachable cells are `inf`
+- [ ] `plan(grid, start, goal, avoid)` blocks discs around the `avoid` points for that call only; start and goal are snapped without the discs; the line-of-sight check uses the same blocked cells
+- [ ] Tests: values on a small known grid, wall in the way, no corner cutting, unreachable cell, several sources, wall distance, descent ends at the source, `avoid` disc forces a detour, simplified path never crosses a blocked cell, planner on w1 with start and goal inside inflated walls, `ProgressMonitor`
+- [ ] Full field on the downsampled, inflated w1 map in under 0.5 s
+
+## Depends on
+
+- NAV-02
+- SET-03
+
+## References
+
+- ARCHITECTURE.md §6.2, §6.3, §6.5
+- docs/CODE_STRUCTURE.md: core/distance_transform.py, core/path.py"
+"NAV-04";"Create `robot_handler` with the `NavigateTo` action server and the spin";"navigation";"node";"M";"M1 Navigation and detection on w1";"2026-11-01";"SET-03 NAV-01";"area:navigation,type:node,size:M,impl:ai-allowed,owner:B";"**NAV-04** · Area: Navigation · Size: M · Owner: B: robot node and perception (geometry, lidar, controller, robot_handler, marker_detector, launch, parameters)
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+Node based on `namespace_exercise/robot_handler.py` and `communication_patterns/navigation_server.py`: subscriptions, `cmd_vel`, the action server with one goal at a time, and the spin on arrival. Until NAV-05, a goal is reached by driving straight to the target with `GoToPointController`.
+
+## Acceptance criteria
+
+- [ ] Relative topic names, robot name from `get_namespace()`, the other robot from `robots`, `/map` with TRANSIENT_LOCAL QoS; effective parameters logged at start
+- [ ] Action server created only when the map and the own pose are known, in a `ReentrantCallbackGroup`; node in a `MultiThreadedExecutor(num_threads=4)`
+- [ ] `goal_callback` and `cancel_callback` accept; `handle_accepted_callback` makes the new goal the active one; a running goal that is no longer active ends with `preempted` without publishing
+- [ ] `reached` → `succeed()`, cancel requested → `canceled()`, every other end → `abort()`; zero velocity in `finally` only while the goal is the active one
+- [ ] `spin_on_arrival` rotates `spin_angle` at `spin_speed` from the odometry yaw, ends after twice the nominal time at the latest, and can be preempted and cancelled
+- [ ] Every callback body in try/except with logging; two instances run side by side in `/tb3_0` and `/tb3_1`
+
+## Depends on
+
+- SET-03
+- NAV-01
+
+## References
+
+- ARCHITECTURE.md §4, §6.7, §6.8, §10
+- docs/CODE_STRUCTURE.md: nodes/robot_handler.py"
+"NAV-05";"Plan and follow paths in `robot_handler`";"navigation";"node";"M";"M1 Navigation and detection on w1";"2026-11-01";"NAV-03 NAV-04";"area:navigation,type:node,size:M,impl:own,owner:B,cross-area";"**NAV-05** · Area: Navigation · Size: M · Owner: B: robot node and perception (geometry, lidar, controller, robot_handler, marker_detector, launch, parameters)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+Build the grids from `/map`, plan with `DistanceTransformPlanner` and follow the simplified path point by point inside the action's execute callback.
+
+## Acceptance criteria
+
+- [ ] `on_map` builds the static grid, the planning grid and the known-wall grid once
+- [ ] The robot stops before planning; intermediate points within `waypoint_tolerance`, the final point within `goal_tolerance`; control loop every 0.05 s
+- [ ] Remaining path length published as feedback (`distance_left`)
+- [ ] Result `no path` when no path exists
+- [ ] The robot reaches hand-sent goals behind walls on w1 without touching walls
+
+## Depends on
+
+- NAV-03
+- NAV-04
+
+## References
+
+- ARCHITECTURE.md §6.1–§6.4
+- docs/CODE_STRUCTURE.md: nodes/robot_handler.py"
+"NAV-06";"Add the lidar safety stop, stuck recovery and two-robot rules to `robot_handler`";"navigation";"node";"M";"M3 Full mission on all worlds (v-test)";"2026-11-06";"NAV-05 NAV-07";"area:navigation,type:node,size:M,impl:own,owner:B,cross-area";"**NAV-06** · Area: Navigation · Size: M · Owner: B: robot node and perception (geometry, lidar, controller, robot_handler, marker_detector, launch, parameters)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+The reactive layer and the rules for two robots from ARCHITECTURE.md §6.5 and §6.6, using `core/lidar.py`, `ProgressMonitor` and `core/traffic.py`.
+
+## Acceptance criteria
+
+- [ ] Scan points projected in the scan callback with the latest odometry and `lidar_offset_x`; points on known walls and within `peer_ignore_radius` of the other robot dropped; the robot stops while a remaining point lies ahead within `obstacle_stop_distance` and ±`obstacle_half_width`
+- [ ] Progress monitor with `stuck_timeout` and `stuck_min_progress`, reset only by a new plan and while waiting for the other robot; when stuck, the robot reverses up to `reverse_distance` at `reverse_speed` while the rear sector is clear and the other robot is not within 0.6 m behind it, then replans; `stuck` after `max_replans`
+- [ ] Every plan avoids the other robot's disc, except when the goal lies inside it or the disc leaves no path
+- [ ] On a conflict the robot stops; the robot with right of way waits and replans with the disc after `peer_wait_timeout`, keeping its goal; the other robot replans with the disc and takes the detour or waits, and ends the goal with `peer` after `peer_wait_timeout`; conflict replans at most once per second, not counted as recoveries
+- [ ] Tests on w1: the robots drive towards each other in a corridor and pass or give way without collision; a box placed in a corridor in Gazebo stops the robot, and the goal ends with `stuck`
+
+## Depends on
+
+- NAV-05
+- NAV-07
+
+## References
+
+- ARCHITECTURE.md §6.5, §6.6
+- docs/CODE_STRUCTURE.md: nodes/robot_handler.py"
+"NAV-07";"Implement the two-robot rules in `core/traffic.py`";"navigation";"core";"M";"M1 Navigation and detection on w1";"2026-11-01";"NAV-03";"area:navigation,type:core,size:M,impl:own,owner:A";"**NAV-07** · Area: Navigation · Size: M · Owner: A: navigation algorithms (grid, distance transform, paths, two-robot rules, marker register, viewpoints, allocation)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+Pure functions for two robots on one map: dropping scan points near the other robot, the conflict rule and right of way.
+
+## Acceptance criteria
+
+- [ ] `remove_near`, `peer_conflict` and `has_right_of_way` as specified in docs/CODE_STRUCTURE.md
+- [ ] `peer_conflict` samples the remaining path up to `path_lookahead`; a sample only counts if it is closer than `peer_stop_clearance` to the other robot and closer to it than the robot is now; no conflict while the other robot moves away faster than 0.1 m/s with a gap of at least 0.7 m
+- [ ] Tests: head-on in a corridor (conflict), driving away from a close robot (no conflict), other robot moving away (no conflict), other robot standing on the path (conflict), right of way follows the `robots` list
+
+## Depends on
+
+- NAV-03
+
+## References
+
+- ARCHITECTURE.md §6.6
+- docs/CODE_STRUCTURE.md: core/traffic.py"
+"PER-01";"Implement `Sighting` and `MarkerRegistry`";"perception";"core";"M";"M1 Navigation and detection on w1";"2026-11-01";"";"area:perception,type:core,size:M,impl:ai-allowed,owner:A,ready";"**PER-01** · Area: Perception · Size: M · Owner: A: navigation algorithms (grid, distance transform, paths, two-robot rules, marker register, viewpoints, allocation)
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+Sightings per marker ID, position estimates with `z = 0` and the reporting lifecycle with retries and resends.
+
+## Acceptance criteria
+
+- [ ] Sightings with unknown IDs or for accepted markers are ignored
+- [ ] First report: median x and y of all sightings once there are `min_sightings`; after a rejection: median of the closer half (at least two sightings) at once; after a second rejection: wait for `min_sightings` new sightings and repeat both steps on all sightings
+- [ ] A report without an answer after 5 s is sent again with the same attempt number; a `false` for an older attempt is ignored; any `true` accepts the marker with that report's position
+- [ ] An accepted marker is never reported again; `accepted_position` returns its reported position
+- [ ] Tests: median ignores one outlier, closer half, retry after two rejections, resend after the timeout, late `true` after a resend, accepted marker never reported again
+
+## Depends on
+
+- None
+
+## References
+
+- ARCHITECTURE.md §7.2
+- docs/CODE_STRUCTURE.md: core/marker_registry.py"
+"PER-02";"Implement the global `marker_detector` node";"perception";"node";"M";"M1 Navigation and detection on w1";"2026-11-01";"SET-03 SPK-01";"area:perception,type:node,size:M,impl:ai-allowed,owner:B";"**PER-02** · Area: Perception · Size: M · Owner: B: robot node and perception (geometry, lidar, controller, robot_handler, marker_detector, launch, parameters)
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+One node without a namespace, based on the course `marker_pose.py`. Every detected marker with ID 0–4 of every robot is transformed to `map` at the image timestamp and published as `FoundMarker`.
+
+## Acceptance criteria
+
+- [ ] One subscription to `/<robot>/aruco_markers` per robot in `robots`; all markers in a message handled, not only the first; IDs outside 0–4 ignored
+- [ ] Transform `map ← <robot>/camera_rgb_optical_frame` looked up at the image timestamp without waiting; a TF exception skips the sighting and is counted; the count is logged every 10 s on a steady-clock timer
+- [ ] Transform applied with `transform_point`; sightings beyond `marker_max_range` discarded; `distance` and `robot` filled; message fields as plain Python types
+- [ ] Publishes only on detection, on `/found_marker` with queue depth 50; effective parameters logged at start
+
+## Depends on
+
+- SET-03
+- SPK-01
+
+## References
+
+- ARCHITECTURE.md §2, §7.1, §10
+- docs/CODE_STRUCTURE.md: nodes/marker_detector.py"
+"PER-03";"Verify `marker_detector` against the scoring ground truth";"perception";"test-run";"S";"M1 Navigation and detection on w1";"2026-11-01";"PER-02 SPK-02";"area:perception,type:test-run,size:S,owner:B";"**PER-03** · Area: Perception · Size: S · Owner: B: robot node and perception (geometry, lidar, controller, robot_handler, marker_detector, launch, parameters)
+
+**Implementation:** no code
+
+## Description
+
+Drive past all five markers on w1 with hand-sent goals (`leader:=false`) and compare the published sightings with the positions printed by scoring at start-up.
+
+## Acceptance criteria
+
+- [ ] Error per marker recorded in `docs/test_runs.md`
+- [ ] Median of the sightings within 0.5 m for all five markers; one report sent by hand with `ros2 service call` is accepted
+- [ ] Comparison with the course `marker_map_pose` topic recorded for the report
+
+## Depends on
+
+- PER-02
+- SPK-02
+
+## References
+
+- ARCHITECTURE.md §2, §7"
+"MIS-01";"Implement the `Mission` state machine with goal deadlines";"mission";"core";"M";"M1 Navigation and detection on w1";"2026-11-01";"SET-03";"area:mission,type:core,size:M,impl:own,owner:C";"**MIS-01** · Area: Mission and leader · Size: M · Owner: C: mission and leader (Mission state machine, leader, reporting, meeting)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+Events in, commands out, as specified in ARCHITECTURE.md §5 and docs/CODE_STRUCTURE.md. Allocator, cost function and meeting function are injected. No ROS, no clock.
+
+## Acceptance criteria
+
+- [ ] States, events, commands and transitions as in ARCHITECTURE.md §5.2, including `try_start_meeting`, `assign`, the pass switch and the retry of a pending meeting (§5.3)
+- [ ] Every `SendGoal` has a new `goal_id` and a deadline from `goal_timeout_base`, the travel cost and the spin time; results with an old `goal_id` are ignored; expired goals are cancelled and handled as failures
+- [ ] Meeting hold time measured with `now` from the events
+- [ ] Tests with a fake allocator, cost function and meeting function: every row of the transition table, ID 4 accepted before `Started`, meeting failures up to `meet_max_attempts`, retry at a pass switch and once all five markers are accepted, stale `goal_id`, `Finish` cancels all goals
+
+## Depends on
+
+- SET-03
+
+## References
+
+- ARCHITECTURE.md §5
+- docs/CODE_STRUCTURE.md: core/mission.py"
+"MIS-02";"Create the `leader` node around `Mission`, with the start-up check";"mission";"node";"L";"M1 Navigation and detection on w1";"2026-11-01";"SET-03 MIS-01";"area:mission,type:node,size:L,impl:ai-allowed,owner:C";"**MIS-02** · Area: Mission and leader · Size: L · Owner: C: mission and leader (Mission state machine, leader, reporting, meeting)
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+Based on `namespace_exercise/leader.py` and `communication_patterns/navigation_client.py`: subscriptions, timers, `dispatch` and `execute`, one `NavigateTo` client per robot, the start-up check and the start-up log. The node contains no mission decisions.
+
+## Acceptance criteria
+
+- [ ] Robot names from the `robots` parameter; `/map` with TRANSIENT_LOCAL QoS; single-threaded; all calls with `send_goal_async` / `call_async` and done callbacks; every callback body in try/except with logging
+- [ ] `Started` sent once `now() > 0`, `/map` received, odometry from all robots, `/set_marker_position` available and every `navigate_to` server available, all held for 2 s (the viewpoint condition is added in MIS-06); then `Tick` at `tick_rate`
+- [ ] Unmet start conditions logged every 5 s on a steady-clock timer; error log if a robot's `aruco_markers` or `camera/image_raw` has no publisher
+- [ ] A rejected goal is dispatched as `GoalFinished(success=False)`; `CancelGoal` is executed as a cancel request
+- [ ] State changes and effective parameters logged
+
+## Depends on
+
+- SET-03
+- MIS-01
+
+## References
+
+- ARCHITECTURE.md §4, §5, §10, §11
+- docs/CODE_STRUCTURE.md: nodes/leader.py"
+"MIS-03";"Report markers to scoring from the leader";"mission";"node";"M";"M1 Navigation and detection on w1";"2026-11-01";"MIS-02 PER-01";"area:mission,type:node,size:M,impl:ai-allowed,owner:C,cross-area";"**MIS-03** · Area: Mission and leader · Size: M · Owner: C: mission and leader (Mission state machine, leader, reporting, meeting)
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+Async service client for `/set_marker_position` driven by `MarkerRegistry`; dispatches `MarkerAccepted`.
+
+## Acceptance criteria
+
+- [ ] Sightings from `/found_marker` added to the registry; every `Report` from `reports_due(now)` sent with `call_async` and a done callback, with `z = 0`; every answer passed to `on_result`
+- [ ] Reports are sent as soon as the service is available, also before `Started`
+- [ ] `MarkerAccepted` dispatched once per accepted marker
+- [ ] Tested on w1 without viewpoints: the robots are driven by hand-sent goals, and every marker seen is reported and accepted
+
+## Depends on
+
+- MIS-02
+- PER-01
+
+## References
+
+- ARCHITECTURE.md §7.2, §10
+- docs/CODE_STRUCTURE.md: nodes/leader.py"
+"MIS-04";"Meeting points and the big-fire meeting";"mission";"core";"M";"M3 Full mission on all worlds (v-test)";"2026-11-06";"MIS-02 MIS-03 NAV-03";"area:mission,type:core,size:M,impl:own,owner:C,cross-area";"**MIS-04** · Area: Mission and leader · Size: M · Owner: C: mission and leader (Mission state machine, leader, reporting, meeting)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+`meeting_points` in `core/meeting.py` from the distance-transform fields of both robots, and the meeting in the leader through `Mission`.
+
+## Acceptance criteria
+
+- [ ] Point A within `meet_radius` of the accepted ID 4 position for the robot that is closer by travel distance; point B within `meet_radius_second`, at least `meet_separation` from A, for the other robot; cells within 0.3 m of an excluded point skipped; `None` if no pair exists
+- [ ] The leader's `meeting_points(exclude)` uses `accepted_position(4)` and both robots' cost fields
+- [ ] Tests: marker in an alcove where only one robot fits (point B at the opening), excluded points, no pair → `None`
+- [ ] On w1 both robots stay within 2 m of the true marker for `meet_hold_time`, and the score printed by scoring rises by 300
+
+## Depends on
+
+- MIS-02
+- MIS-03
+- NAV-03
+
+## References
+
+- ARCHITECTURE.md §5, §9
+- docs/CODE_STRUCTURE.md: core/meeting.py, nodes/leader.py"
+"MIS-05";"Implement viewpoint generation and `GreedyAllocator`";"mission";"core";"M";"M1 Navigation and detection on w1";"2026-11-01";"NAV-03";"area:mission,type:core,size:M,impl:own,owner:A";"**MIS-05** · Area: Mission and leader · Size: M · Owner: A: navigation algorithms (grid, distance transform, paths, two-robot rules, marker register, viewpoints, allocation)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+Viewpoints on two offset lattices, moved to free cells with room to rotate and kept if reachable and close to a wall, and the allocator that gives an idle robot the cheapest free viewpoint and reserves it. `viewpoint_spacing` is 1.5 m until SPK-02 gives a value.
+
+## Acceptance criteria
+
+- [ ] `generate_viewpoints` and `GreedyAllocator` as specified in docs/CODE_STRUCTURE.md
+- [ ] Lattice points moved to the nearest cell within half the spacing that is free in the planning grid and at least `spin_clearance` from the nearest wall; kept if reachable from the start and within `viewpoint_wall_distance` of a wall; duplicates removed
+- [ ] `complete`: success → visited, first failure → free for the other robot only, second failure → dropped; `complete` and `release` do nothing without a reservation
+- [ ] Tests with a fake cost function: cheapest free viewpoint, unreachable skipped, reservations split two robots, failure handling, `release`, `free_count`; number of viewpoints per world and pass recorded
+
+## Depends on
+
+- NAV-03
+
+## References
+
+- ARCHITECTURE.md §8.1, §8.2
+- docs/CODE_STRUCTURE.md: core/viewpoints.py, core/allocation.py"
+"MIS-06";"Exploration with viewpoint passes in the leader";"mission";"node";"M";"M3 Full mission on all worlds (v-test)";"2026-11-06";"MIS-02 MIS-05";"area:mission,type:node,size:M,impl:own,owner:C,cross-area";"**MIS-06** · Area: Mission and leader · Size: M · Owner: C: mission and leader (Mission state machine, leader, reporting, meeting)
+
+**Implementation:** own (core of the navigation algorithm, R7: implemented by the issue owner without AI code generation; AI tools may be used for explanations and review)
+
+## Description
+
+Viewpoint passes computed from `/map` before the first movement, `GreedyAllocator` with `path_cost` from distance-transform fields, viewpoints sent with spin on arrival, and new passes while markers are missing.
+
+## Acceptance criteria
+
+- [ ] Both passes computed before `Started` (start field from both robots' snapped cells, wall distance from the static grid); ""viewpoints computed"" added to the start conditions
+- [ ] `path_cost(robot, point)` uses a field with the robot's snapped cell as source, cached while the robot stays in that cell
+- [ ] Passes loaded in the order 0, 1, 0, … when no free viewpoint is left
+- [ ] `Finish` cancels all goals and logs the result
+- [ ] On w1 the robots visit the viewpoints of both passes and spin at each, and the markers seen on the way are reported
+
+## Depends on
+
+- MIS-02
+- MIS-05
+
+## References
+
+- ARCHITECTURE.md §5, §8
+- docs/CODE_STRUCTURE.md: nodes/leader.py"
+"INT-01";"First full run on w1";"integration";"test-run";"M";"M3 Full mission on all worlds (v-test)";"2026-11-06";"SET-04 SPK-01 NAV-06 NAV-07 PER-03 MIS-03 MIS-04 MIS-06";"area:integration,type:test-run,size:M";"**INT-01** · Area: Integration and test runs · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+The complete system on w1 for the first time: exploration, detection, reporting, the meeting and the rules for two robots.
+
+## Acceptance criteria
+
+- [ ] Full 10-minute runs on w1 following the test-run procedure in the README
+- [ ] Score, time, markers found, meeting, real-time factor and failures recorded in `docs/test_runs.md`
+- [ ] Every failure fixed or recorded as an issue
+
+## Depends on
+
+- SET-04
+- SPK-01
+- NAV-06
+- NAV-07
+- PER-03
+- MIS-03
+- MIS-04
+- MIS-06
+
+## References
+
+- ARCHITECTURE.md §5–§9
+- README.md: Full test runs"
+"INT-02";"Full runs on all five worlds and tuning";"integration";"test-run";"M";"M3 Full mission on all worlds (v-test)";"2026-11-06";"INT-01";"area:integration,type:test-run,size:M";"**INT-02** · Area: Integration and test runs · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Full runs on w1–w5, and tuning of the parameters with the largest effect: spacing, spin speed, speeds, tolerances, stop distance, `marker_max_range`, `min_sightings` and the timeouts.
+
+## Acceptance criteria
+
+- [ ] At least one full run per world recorded in `docs/test_runs.md`
+- [ ] No collisions; all five markers and the meeting on every world, or the failure analysed
+- [ ] Final values in `params.yaml`, with a short justification in `docs/test_runs.md`
+
+## Depends on
+
+- INT-01
+
+## References
+
+- ARCHITECTURE.md §8.3, §13
+- README.md: Full test runs"
+"INT-03";"Robust start-up, README run instructions and tag `v-test`";"integration";"node";"M";"M3 Full mission on all worlds (v-test)";"2026-11-06";"INT-01";"area:integration,type:node,size:M,impl:ai-allowed";"**INT-03** · Area: Integration and test runs · Size: M · Owner: shared
+
+**Implementation:** AI code generation allowed (the owner reviews the code and can explain it)
+
+## Description
+
+The nodes cope with any start order; the run instructions in the README (R9) are written and followed step by step in a fresh workspace; the test-run version is tagged.
+
+## Acceptance criteria
+
+- [ ] Our nodes work in any start order relative to the world and to each other; scoring is started after the robots have spawned, as the README says; no robot moves before `Started`; behaviour unchanged with the GUI on and off
+- [ ] README: installation, build command (`--packages-select`, no `--symlink-install`), launch arguments, stopping old nodes before a run, troubleshooting
+- [ ] Clean clone → build → launch → full run, using only the README; README corrected where it was wrong
+- [ ] Tag `v-test` on `main`
+
+## Depends on
+
+- INT-01
+
+## References
+
+- ARCHITECTURE.md §1 (R9), §11
+- README.md"
+"INT-04";"Smoke test on the competition PC";"integration";"test-run";"M";"M2 Competition-PC smoke test (week 45)";"2026-11-04";"SET-04 NAV-05 PER-02";"area:integration,type:test-run,size:M";"**INT-04** · Area: Integration and test runs · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+A booked Tuesday or Wednesday slot in week 45 on the organisers' competition PC. Book early; the organisers need access to the repository. The test checks the set-up on that machine, not the full mission.
+
+## Acceptance criteria
+
+- [ ] Slot booked and repository access given to the organisers
+- [ ] Clean clone → build as in the README → launch with `leader:=false` → both robots drive a hand-sent goal → a marker is detected → scoring prints the marker positions
+- [ ] Set-up recorded: ROS distribution, who starts the world, `start_world` value, real-time factor (ARCHITECTURE.md §15 Q3, Q5)
+- [ ] Every deviation recorded as an issue
+
+## Depends on
+
+- SET-04
+- NAV-05
+- PER-02
+
+## References
+
+- README.md: Running, Troubleshooting
+- ARCHITECTURE.md §15"
+"INT-05";"Fix deviations, competition-day checklist and tag `v-final`";"integration";"node";"M";"M4 Competition and report (week 46)";"2026-11-15";"INT-03 INT-04";"area:integration,type:node,size:M";"**INT-05** · Area: Integration and test runs · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Deviations found on the competition PC fixed, and a short checklist for the competition day. Fixes follow the implementation label of the issue that introduced the code.
+
+## Acceptance criteria
+
+- [ ] All deviations fixed or documented
+- [ ] Checklist in `docs/`: tag, build, launch command, what to monitor
+- [ ] Final full runs on all five worlds pass; tag `v-final` on `main`
+
+## Depends on
+
+- INT-03
+- INT-04
+
+## References
+
+- README.md: Running, Troubleshooting"
+"REP-01";"Report outline and figures";"report";"docs";"M";"M3 Full mission on all worlds (v-test)";"2026-11-06";"";"area:report,type:docs,size:M,ready";"**REP-01** · Area: Report · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Report structure according to the course template and requirement R8, and figures from ARCHITECTURE.md.
+
+## Acceptance criteria
+
+- [ ] Outline covers communication, navigation, exploration, implementation, results and AI use
+- [ ] Figures in `docs/report/`: system overview, mission state machine, meeting sequence, distance-transform example on a map
+- [ ] Deadline, template and language recorded (ARCHITECTURE.md §15 Q4)
+
+## Depends on
+
+- None
+
+## References
+
+- ARCHITECTURE.md §1 (R8), §3, §5, §9"
+"REP-02";"Report sections: communication, navigation and implementation";"report";"docs";"L";"M4 Competition and report (week 46)";"2026-11-15";"REP-01 INT-01";"area:report,type:docs,size:L";"**REP-02** · Area: Report · Size: L · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Topics, services and actions; the centralised leader and the allocation; the meeting; planning grid, distance transform, path following, reactive layer and exploration; package and node structure, tests and concurrency.
+
+## Acceptance criteria
+
+- [ ] Explains why each communication pattern is used, and centralised versus decentralised coordination
+- [ ] Shows what the group implemented (R7), why a distance transform was chosen over D*, PRM, RRT and lattice planners, and why map-based planning was chosen over wall following and Bug2
+- [ ] Explains why the course `marker_map_pose` topic is replaced by `marker_detector`, with the PER-03 measurements
+- [ ] Describes the code structure and the test strategy
+
+## Depends on
+
+- REP-01
+- INT-01
+
+## References
+
+- ARCHITECTURE.md §3–§12"
+"REP-03";"Report section: results and discussion";"report";"docs";"M";"M4 Competition and report (week 46)";"2026-11-15";"REP-01 INT-02";"area:report,type:docs,size:M";"**REP-03** · Area: Report · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+Scores per world, the competition-PC test, the choice of spacing, limitations and improvements.
+
+## Acceptance criteria
+
+- [ ] Table of results from `docs/test_runs.md`
+- [ ] Choice of `viewpoint_spacing` and `spin_speed` justified with SPK-02 and the test runs
+- [ ] Failures and limitations discussed, including the fixed viewpoint lattice versus a coverage-based choice of viewpoints
+
+## Depends on
+
+- REP-01
+- INT-02
+
+## References
+
+- ARCHITECTURE.md §8.3, §8.4"
+"REP-04";"AI-use declaration, final review and submission";"report";"docs";"M";"M4 Competition and report (week 46)";"2026-11-15";"REP-02 REP-03";"area:report,type:docs,size:M";"**REP-04** · Area: Report · Size: M · Owner: shared
+
+**Implementation:** no code
+
+## Description
+
+AI-use declaration, references, work logs, proofreading and submission.
+
+## Acceptance criteria
+
+- [ ] AI-use section in the report and in the README, based on the work logs
+- [ ] References complete; every member's work log attached
+- [ ] Submitted before the deadline
+
+## Depends on
+
+- REP-02
+- REP-03
+
+## References
+
+- README.md: Use of AI tools
+- ARCHITECTURE.md §1 (R10), §14"
