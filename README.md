@@ -55,7 +55,7 @@ course VM.
 
 The course `aruco_node` needs an `opencv-contrib-python` version that provides
 `getPredefinedDictionary`, `DetectorParameters()`, `detectMarkers` and
-`estimatePoseSingleMarkers`. Version verified in the course VM: _recorded in SET-02_.
+`estimatePoseSingleMarkers`. Version verified in the course VM: `opencv-contrib-python==4.8.0.76`.
 
 ### 2. Workspace
 
