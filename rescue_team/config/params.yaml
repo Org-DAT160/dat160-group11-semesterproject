@@ -1,0 +1,76 @@
+# All tunable values for our nodes (ARCHITECTURE.md section 13).
+#
+# One shared block: "/**" matches every node, in every namespace, so robot_handler,
+# marker_detector and leader all read this same file. Each node only declares (uses)
+# the parameters it needs.
+#
+# Values marked (SPK-01) or (SPK-02) are first guesses that the spikes will measure.
+# Everything else is tuned during test runs; record changes in docs/test_runs.md.
+#
+# Type rule (ROS 2 Foxy): a parameter declared as a float must be written with a
+# decimal point here (10.0, not 10), otherwise the node fails at start-up.
+
+/**:
+  ros__parameters:
+    # --- Robots ---
+    # Robot namespaces, in right-of-way order (the first one wins a conflict).
+    # The launch file sets the same list for every node.
+    robots: ["tb3_0", "tb3_1"]
+
+    # --- Grids (leader, robot_handler) ---
+    grid_resolution: 0.10          # m, cell size of the static and planning grids
+    inflation_radius: 0.30         # m, walls are grown by this much for planning
+
+    # --- Path following (robot_handler) ---
+    waypoint_tolerance: 0.05       # m, an intermediate path point counts as reached
+    goal_tolerance: 0.10           # m, the final point counts as reached
+    turn_threshold: 0.5            # rad, heading error above this: turn in place first
+    max_linear_speed: 0.26         # m/s, TurtleBot3 top speed (leader uses it for goal deadlines)
+    distance_gain: 1.0             # 1/s, k_d in v = min(v_max, k_d * distance)
+    max_angular_speed: 1.5         # rad/s, turn rate limit while following a path
+    heading_gain: 1.5              # 1/s, k_h in omega = k_h * heading_error
+
+    # --- Spin at viewpoints (robot_handler, leader) ---
+    spin_speed: 1.5                # rad/s, fastest rate that still detects markers (SPK-02)
+    spin_angle: 5.2                # rad, 2*pi minus the camera's horizontal field of view
+
+    # --- Lidar safety stop (robot_handler) ---
+    obstacle_stop_distance: 0.35   # m, stop if something is this close ahead (also rear check when reversing)
+    obstacle_half_width: 0.20      # m, half width of the stop zone in front of the robot
+    lidar_offset_x: -0.064         # m, lidar position along the robot's x axis (SPK-01)
+
+    # --- Two robots on one map (robot_handler) ---
+    peer_ignore_radius: 0.40       # m, lidar points this close to the other robot are ignored
+    peer_plan_clearance: 0.60      # m, radius of the disc around the other robot when planning
+    peer_stop_clearance: 0.50      # m, path points closer than this to the other robot can be a conflict
+    path_lookahead: 1.0            # m, length of the path ahead checked for conflicts
+    peer_wait_timeout: 10.0        # s, how long a robot waits for the other one before acting
+
+    # --- Stuck recovery (robot_handler) ---
+    reverse_distance: 0.30         # m, max reversing distance
+    reverse_speed: 0.10            # m/s
+    stuck_timeout: 8.0             # s, no progress for this long = stuck
+    stuck_min_progress: 0.05       # m, how much the remaining path must shrink to count as progress
+    max_replans: 5                 # recoveries before the goal ends as "stuck"
+
+    # --- Marker detection (marker_detector) ---
+    marker_max_range: 2.5          # m, sightings farther away are discarded (SPK-02)
+
+    # --- Reporting (leader) ---
+    min_sightings: 3               # sightings needed before a marker is reported
+
+    # --- Exploration (leader) ---
+    viewpoint_spacing: 1.5         # m, distance between viewpoints in the lattice (SPK-02)
+    viewpoint_wall_distance: 1.5   # m, a viewpoint must be at most this far from a wall
+    spin_clearance: 0.40           # m, a viewpoint must be at least this far from a wall
+
+    # --- Big-fire meeting (leader) ---
+    meet_radius: 1.0               # m, max distance of meeting point A from the big fire
+    meet_radius_second: 1.2        # m, max distance of meeting point B from the big fire
+    meet_separation: 0.8           # m, min distance between the two meeting points
+    meet_hold_time: 3.0            # s, both robots wait this long at the meeting points
+    meet_max_attempts: 3           # failed meeting attempts before exploring again
+
+    # --- Mission timing (leader) ---
+    goal_timeout_base: 20.0        # s, fixed part of every goal deadline
+    tick_rate: 2.0                 # Hz, how often the mission state machine runs

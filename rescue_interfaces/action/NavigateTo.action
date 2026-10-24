@@ -1,0 +1,10 @@
+# Goal
+geometry_msgs/Point target    # map frame; z is ignored
+bool spin_on_arrival          # rotate at the target to look for markers (ARCHITECTURE.md section 6.8)
+---
+# Result
+bool success
+string message                # "reached", "no path", "stuck", "peer", "preempted" or "cancelled"
+---
+# Feedback
+float32 distance_left         # metres along the planned path, for logging

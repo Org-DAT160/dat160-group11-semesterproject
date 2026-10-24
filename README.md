@@ -285,6 +285,11 @@ See [docs/CODE_STRUCTURE.md](docs/CODE_STRUCTURE.md) for the role of each file.
 | Scoring clock starts immediately | Scoring was started before the robots published odometry. Start scoring after the robots have spawned. |
 | Nodes from other groups appear in `ros2 node list` | Set `ROS_LOCALHOST_ONLY=1` (see "Before every run"). |
 | Warning about two nodes named `marker_recognition` | The course `spawn_robot.launch.py` starts one per robot without a namespace. Our system does not use these nodes (see ARCHITECTURE.md §2). |
+| Topics are listed, but no data arrives (`ros2 topic hz /tb3_0/odom` prints nothing, robots ignore `cmd_vel`) | Old Fast-DDS shared-memory files from earlier runs. Stop everything, then `rm -f /dev/shm/fastrtps_*`, `ros2 daemon stop`, `ros2 daemon start`, and launch again. `ros2 topic hz /tb3_0/odom` should show about 30 Hz. |
+| `spawn_entity`: `Service /spawn_entity unavailable` or the robots never appear | Processes from a previous run are still alive (the launch was killed instead of stopped with Ctrl+C). Check with `ps aux \| grep -E "spawn_entity\|gzserver\|aruco_node"`, kill them, and start again. |
+| `colcon build`: `The source ... does not match the source ... used to generate cache` | An older package with the same name was built in this workspace. Delete `~/ros2_ws/build/<package>` and `~/ros2_ws/install/<package>` and build again. |
+| `test_flake8` fails with `'Application' object has no attribute 'parse_preliminary_options_and_args'` | A pip-installed flake8 (newer than 3.7.9) overrides the one ROS Foxy needs. Run the tests with `PYTHONNOUSERSITE=1 python3 -m pytest test/`, or remove the pip flake8 (`pip3 uninstall flake8`). |
+| `teleop_twist_keyboard` does not drive with `w` | In this program `w` raises the speed; the movement keys are `i` (forward), `,` (back), `j`/`l` (turn) and `k` (stop). Start it with `--ros-args -r cmd_vel:=/tb3_0/cmd_vel`. |
 
 ---
 
