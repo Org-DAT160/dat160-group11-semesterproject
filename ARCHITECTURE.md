@@ -59,18 +59,18 @@ ROS 2 Foxy sources. Items marked **verify** are confirmed in simulation
 | Time base | Elapsed time is measured with the wall clock (`time.time()`), not simulation time. | A low real-time factor costs points directly. The Gazebo GUI and RViz are off in competition runs, and the real-time factor is recorded in every test run. |
 | Clock start | Starts when any robot's odometry differs by more than 0.1 m or 0.1 rad from its spawn pose read from Gazebo. Until odometry arrives, the robot position defaults to (0, 0). | Computation done before the first movement costs no time (§8.1, §11). Scoring is started after the robots publish odometry. |
 | Clock stop | Only when ID 4 is accepted, the meeting has been detected and all five IDs are accepted. Otherwise the clock runs to 600 s. | The meeting is required for any time bonus. |
-| Accuracy | A report is accepted if it is within **0.5 m in 3D** of the marker model's origin. | See "Marker model". |
+| Accuracy | A report is accepted if it is within **0.5 m in 3D** of the marker model's origin. **Verified in SPK-01:** 0.30 m off sideways is accepted with z = 0 and rejected with z = 0.45 (3D error 0.54 m). | See "Marker model". |
 | Marker model | The origin is on the floor. The plate is 0.5 × 0.5 m, from z = 0 to z = 0.5, centred on the origin and textured on both faces. Markers, fires and the baby model have no collision geometry. | A detection gives the plate centre at z ≈ 0.25. Reporting `z = 0` matches the origin and leaves the full 0.5 m for the horizontal error. The lidar does not see markers. |
-| Wrong report | Rejected without penalty. A repeated report of an accepted marker also returns `accepted = false`. No report is accepted after the run has ended. | Retry with a better estimate; never report an accepted marker again (§7.2). |
+| Wrong report | Rejected without penalty. A repeated report of an accepted marker also returns `accepted = false`, without any log line in scoring; an inaccurate position or an invalid ID is logged as an error (verified in SPK-01). No report is accepted after the run has ended. | Retry with a better estimate; never report an accepted marker again (§7.2). |
 | Meeting check | Evaluated every 0.5 s, after ID 4 has been accepted, as the 2D distance from the robots to the true marker position. Walls between robot and marker do not matter. The robots get no feedback; only the score that scoring prints rises by 300. | Hold both robots at the meeting points for a few seconds (§9). |
 | Ground truth | Each world file contains two different poses per marker (the `<state>` block and the model definition). | The positions that scoring prints at start-up are the ground truth for tests. The simulation and our nodes are restarted between test runs instead of using "Reset World". |
 | Worlds | Five worlds, each with its own blueprint map, with bounding boxes from 13 × 15 m to 20 × 10 m. The walls in the world files match their blueprint within a few centimetres. Simulation time does not start at zero in these worlds. | Apart from the other robot there are no obstacles that the blueprint does not show, so the planning grid stays fixed during a run (§6.1). Timers only use time differences. |
 | Start poses | Different in each world (for example (0, −1) and (0, 1) in w1, (0, −0.5) and (0, −2.5) in w5). Both robots face +x. | No positions in the code. The launch file holds the spawn poses per world; our nodes read the start poses from odometry. |
-| Odometry | `map → tb3_N/odom` is a static identity transform. The diff-drive plugin sets no `odometry_source`, so it uses the plugin default (world). **verify** | `/tb3_N/odom` is the ground-truth pose in the `map` frame. No localisation filter is needed. |
+| Odometry | `map → tb3_N/odom` is a static identity transform. The diff-drive plugin sets no `odometry_source`, so it uses the plugin default (world). **Verified in SPK-01:** after about 7 m of driving with turns and pushing against a wall, `/tb3_0/odom` and the Gazebo model pose (`/gazebo/get_entity_state`) differed by less than 0.1 mm and 0.0001 rad. | `/tb3_N/odom` is the ground-truth pose in the `map` frame. No localisation filter is needed. |
 | TF in Python (Foxy) | The Python `TransformListener` subscribes to the relative topics `tf` and `tf_static`, while all broadcasters publish on `/tf` and `/tf_static`. | A namespaced Python node with a TF listener receives no transforms. The marker detector is one global node (§7.1). |
 | Map | `/map` (`nav_msgs/OccupancyGrid`), 2000 × 2000 cells, 0.01 m/cell, origin (−10, −10). Published once by `map_server` with transient-local durability. | Subscribe with `TRANSIENT_LOCAL` QoS. Downsample before planning (§6.1). |
 | Marker placement | At ground level, mostly in alcoves and short dead ends, facing into the alcove. | A marker is often visible only from inside or in front of its alcove. Viewpoints lie close to walls (§8.1). |
-| Lidar | `/tb3_N/scan`: 360 samples over 0–2π, 5 Hz, range 0.12–3.5 m, invalid readings `inf`. Mounted 0.064 m behind `base_footprint` in TF; the ray origin may lie 0.128 m behind with newer SDFormat versions. **verify** | The front sector wraps around angle 0. The offset is the parameter `lidar_offset_x`. The lidar also sees the other robot (§6.6). |
+| Lidar | `/tb3_N/scan`: 360 samples over 0–2π, 5 Hz, range 0.12–3.5 m, invalid readings `inf`. Mounted 0.064 m behind `base_footprint` in TF; the ray origin may lie 0.128 m behind with newer SDFormat versions. **Verified in SPK-01:** compared with the 1 cm map straight ahead and behind, the ray origin is 0.067 m behind (median of 9, noise about ±0.01 m), so the TF value 0.064 m holds. | The front sector wraps around angle 0. The offset is the parameter `lidar_offset_x`. The lidar also sees the other robot (§6.6). |
 | Robot geometry | The rotation centre is `base_footprint`. The 0.266 m body is centred 0.064 m behind it; the wheels reach ±0.153 m sideways. | The robot sweeps a radius of about 0.24 m when it turns in place, which sets the inflation radius (§6.1). |
 | Camera | 640 × 480, 30 Hz, horizontal field of view (HFOV) ≈ 62°, vertical ≈ 49°, about 0.10 m above the floor, frame `tb3_N/camera_rgb_optical_frame`. | The whole 0.5 m plate is in view only from about 0.9 m. The robot sees a narrow cone ahead, so it rotates at viewpoints (§6.8). |
 | ArUco | Dictionary `DICT_5X5_250`, marker size 0.5 m. `aruco_node` (one per robot) publishes `/tb3_N/aruco_markers` only when a marker is visible, with the image timestamp and an **empty** `frame_id`. Poses use the optical-frame convention. | The detector names the frame `tb3_N/camera_rgb_optical_frame` itself and looks up the transform at the image time (§7.1). |
@@ -543,8 +543,18 @@ One global node for all robots.
 1. Subscribe to `/<robot>/aruco_markers` for every robot in `robots`.
 2. For **every** marker in a message with an ID from 0 to 4, look up the
    transform `map ← <robot>/camera_rgb_optical_frame` **at the image timestamp**
-   (not the latest transform), without waiting. If the transform is not
-   available, skip the sighting; more sightings follow.
+   (not the latest transform). If the transform is not available yet, keep the
+   message in a queue and try again every 20 ms; drop it after 1 s. The camera
+   message usually arrives before the robot pose for the same moment. SPK-01,
+   robot standing 2 m in front of marker 4 on w1, 20 s each:
+
+   | Fast-DDS setting | Detections | OK at once | OK after waiting | Dropped | Longest wait |
+   |---|---|---|---|---|---|
+   | Default (shared memory, as on most PCs) | 16 | 5 | 11 | 0 | 111 ms |
+   | UDP only (`config/fastdds_udp_only.xml`) | 30 | 13 | 17 | 0 | 103 ms |
+
+   Without the queue, 57–69 % of the sightings would be lost. Every position was
+   within 1 cm of the scoring position (4.80–4.81, −0.91).
 3. Transform the marker position to `map` with NumPy (quaternion to rotation
    matrix, plus translation).
 4. Discard sightings farther from the camera than `marker_max_range`.
@@ -813,7 +823,7 @@ parameters it uses. Initial values, to be tuned in test runs:
 | `spin_angle` | robot_handler, leader | 5.2 rad | Rotation at viewpoints (2π − HFOV) |
 | `obstacle_stop_distance` | robot_handler | 0.35 m | Lidar safety stop distance ahead of `base_footprint`; also the rear clearance when reversing |
 | `obstacle_half_width` | robot_handler | 0.20 m | Half width of the safety stop zone |
-| `lidar_offset_x` | robot_handler | −0.064 m (SPK-01) | Lidar ray origin along the robot's x axis, relative to `base_footprint` |
+| `lidar_offset_x` | robot_handler | −0.064 m (verified in SPK-01) | Lidar ray origin along the robot's x axis, relative to `base_footprint` |
 | `peer_ignore_radius` | robot_handler | 0.40 m | Scan points this close to the other robot are dropped |
 | `peer_plan_clearance` | robot_handler | 0.60 m | Radius of the disc around the other robot in plans |
 | `peer_stop_clearance` | robot_handler | 0.50 m | Path points closer than this to the other robot can cause a conflict |
@@ -838,7 +848,8 @@ parameters it uses. Initial values, to be tuned in test runs:
 | `tick_rate` | leader | 2 Hz | Rate of the mission timer |
 
 Fixed values in the code: report answer timeout 5 s (§7.2), start-up hold 2 s and
-log interval 5 s (§11), TF failure log interval 10 s (§7.1), exclusion radius
+log interval 5 s (§11), TF failure log interval 10 s, TF retry period 20 ms and
+retry limit 1 s (§7.1), exclusion radius
 0.3 m around failed meeting points (§9), rear lidar sector ±0.5 rad around
 straight back and rear check for the other robot 0.6 m (§6.5), moving-away
 limits 0.1 m/s and 0.7 m (§6.6), search radius 0.5 m when snapping a point to
@@ -877,8 +888,10 @@ All use of AI tools is recorded in the work log and described in the report.
 
 | # | Question | How it is resolved |
 |---|---|---|
-| Q1 | Is `/odom` the ground-truth pose in the `map` frame? Does a transform lookup at an image timestamp work from a Python node without a namespace? Where is the lidar ray origin (−0.064 m or −0.128 m)? | SPK-01 |
+| Q1 | Is `/odom` the ground-truth pose in the `map` frame? Does a transform lookup at an image timestamp work from a Python node without a namespace? Where is the lidar ray origin (−0.064 m or −0.128 m)? | SPK-01. Odometry: **yes**, `/odom` is the ground-truth pose in `map` (§2). TF lookup at the image time from a node without a namespace: **yes**, within about 1–4 cm of the scoring position at 2–3.5 m, but only after waiting for the pose (retry queue, §7.1). Lidar ray origin: **−0.064 m** (§2). Scoring behaviour on accept, reject, repeat and z: as described in §2. |
 | Q2 | At which distances and angles are markers detected and positioned within 0.5 m, and up to which rotation speed? This sets `marker_max_range`, `viewpoint_spacing` and `spin_speed`. | SPK-02 |
 | Q3 | Which ROS distribution and set-up does the competition PC use, who starts the world, and do the organisers run our launch file or their own? | Ask the course staff; smoke test (INT-04) |
 | Q4 | Report deadline, template and language; expected documentation of AI use. | Ask the course staff |
-| Q5 | Which real-time factor do the VM and the competition PC reach with the GUI off? | SET-02, INT-04 |
+| Q5 | Which real-time factor do the VM and the competition PC reach with the GUI off? | SET-02, INT-04. Course VM (SET-02, w1): 0.99 with the GUI on and off. Competition PC: INT-04. |
+| Q6 | Which Fast-DDS setting does the competition PC use? Our code works with the default (§7.1), but shared memory slowed the camera to 3.7 Hz on the VM (21–24 Hz over UDP). If the organisers run our launch file, it could set `FASTRTPS_DEFAULT_PROFILES_FILE` for all processes it starts. | Check at the smoke test (INT-04), then decide |
+| Q7 | The competition page says the five maps have "different damage (new obstacles, wall openings, moved targets)". §2 assumes no obstacles that the blueprint does not show. Do the competition worlds match the course world files, or can there be obstacles that are not on `/map`? | Ask the course staff; affects the safety stop and replanning (§6.5) |

@@ -37,7 +37,7 @@
     # --- Lidar safety stop (robot_handler) ---
     obstacle_stop_distance: 0.35   # m, stop if something is this close ahead (also rear check when reversing)
     obstacle_half_width: 0.20      # m, half width of the stop zone in front of the robot
-    lidar_offset_x: -0.064         # m, lidar position along the robot's x axis (SPK-01)
+    lidar_offset_x: -0.064         # m, lidar position along the robot's x axis (verified in SPK-01)
 
     # --- Two robots on one map (robot_handler) ---
     peer_ignore_radius: 0.40       # m, lidar points this close to the other robot are ignored

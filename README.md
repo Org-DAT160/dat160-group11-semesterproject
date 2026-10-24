@@ -101,6 +101,22 @@ Add `source /opt/ros/foxy/setup.bash` and `source ~/ros2_ws/install/setup.bash`
 to `~/.bashrc` to avoid repeating them in every terminal. After a change in our
 code, `colcon build --packages-select rescue_team` is enough.
 
+### 5. Fast-DDS over UDP (recommended for development)
+
+By default, Fast-DDS (the ROS 2 Foxy middleware) also passes messages through
+shared-memory files in `/dev/shm`. Processes that are killed leave these files
+behind, and after many runs topics go silent: they are listed, but no data
+arrives. On the course VM the camera also ran at only 3.7 Hz with the default,
+and at 21–24 Hz over UDP (SPK-01). Add this line to `~/.bashrc`:
+
+```bash
+export FASTRTPS_DEFAULT_PROFILES_FILE=~/ros2_ws/src/dat160_group11/rescue_team/config/fastdds_udp_only.xml
+```
+
+This only changes your own machine. Our code does not depend on it and works
+with the default setting as well (ARCHITECTURE.md §7.1), which is what the
+competition PC is likely to use.
+
 ---
 
 ## Running
@@ -285,7 +301,7 @@ See [docs/CODE_STRUCTURE.md](docs/CODE_STRUCTURE.md) for the role of each file.
 | Scoring clock starts immediately | Scoring was started before the robots published odometry. Start scoring after the robots have spawned. |
 | Nodes from other groups appear in `ros2 node list` | Set `ROS_LOCALHOST_ONLY=1` (see "Before every run"). |
 | Warning about two nodes named `marker_recognition` | The course `spawn_robot.launch.py` starts one per robot without a namespace. Our system does not use these nodes (see ARCHITECTURE.md §2). |
-| Topics are listed, but no data arrives (`ros2 topic hz /tb3_0/odom` prints nothing, robots ignore `cmd_vel`) | Old Fast-DDS shared-memory files from earlier runs. Stop everything, then `rm -f /dev/shm/fastrtps_*`, `ros2 daemon stop`, `ros2 daemon start`, and launch again. `ros2 topic hz /tb3_0/odom` should show about 30 Hz. |
+| Topics are listed, but no data arrives (`ros2 topic hz /tb3_0/odom` prints nothing, robots ignore `cmd_vel`, markers in view are not detected) | Old Fast-DDS shared-memory files from earlier runs. Stop everything, then `rm -f /dev/shm/fastrtps_*`, `ros2 daemon stop`, `ros2 daemon start`, and launch again. `ros2 topic hz /tb3_0/odom` should show about 30 Hz. To prevent it, use Fast-DDS over UDP (Installation step 5). |
 | `spawn_entity`: `Service /spawn_entity unavailable` or the robots never appear | Processes from a previous run are still alive (the launch was killed instead of stopped with Ctrl+C). Check with `ps aux \| grep -E "spawn_entity\|gzserver\|aruco_node"`, kill them, and start again. |
 | `colcon build`: `The source ... does not match the source ... used to generate cache` | An older package with the same name was built in this workspace. Delete `~/ros2_ws/build/<package>` and `~/ros2_ws/install/<package>` and build again. |
 | `test_flake8` fails with `'Application' object has no attribute 'parse_preliminary_options_and_args'` | A pip-installed flake8 (newer than 3.7.9) overrides the one ROS Foxy needs. Run the tests with `PYTHONNOUSERSITE=1 python3 -m pytest test/`, or remove the pip flake8 (`pip3 uninstall flake8`). |
