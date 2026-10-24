@@ -385,8 +385,9 @@ Internal helpers follow ARCHITECTURE.md §5.3: `_try_start_meeting(now)`,
 | Member | Signature | Purpose |
 |---|---|---|
 | `__init__` | `()` | Parameters `robots` and `marker_max_range` (logged at start); TF buffer and listener; one subscription to `/<robot>/aruco_markers` per robot; publisher `/found_marker` (queue depth 50); steady-clock timer for the failure log |
-| `on_markers` | `(robot: str, msg: ArucoMarkers) -> None` | For every marker with ID 0–4: transform, range filter, publish |
-| `to_map_frame` | `(robot: str, position: Tuple[float, float, float], stamp: Time) -> Optional[Tuple[float, float, float]]` | Look up `map ← <robot>/camera_rgb_optical_frame` at the image time without waiting and apply it with `transform_point`; `None` and a failure count on any TF exception |
+| `on_markers` | `(robot: str, msg: ArucoMarkers) -> None` | Queue the message and try it at once: for every marker with ID 0–4, transform, range filter, publish. Stays queued if the transform is not available yet |
+| `to_map_frame` | `(robot: str, position: Tuple[float, float, float], stamp: Time) -> Optional[Tuple[float, float, float]]` | Look up `map ← <robot>/camera_rgb_optical_frame` at the image time without waiting and apply it with `transform_point`; `None` if the transform is not available (yet) |
+| `on_retry_timer` | `() -> None` | Every 20 ms: try the queued messages again; drop and count a message that still fails after 1 s (§7.1, SPK-01) |
 | `publish_sighting` | `(robot: str, marker_id: int, position: Tuple[float, float, float], distance: float, stamp: Time) -> None` | Publish `FoundMarker` with plain Python types |
 | `on_log_timer` | `() -> None` | Log the number of failed lookups every 10 s |
 

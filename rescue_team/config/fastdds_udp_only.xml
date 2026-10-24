@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  Fast-DDS settings: send ROS messages over UDP only, never through shared memory.
+
+  Why: in ROS 2 Foxy, Fast-DDS also uses shared-memory files in /dev/shm. A process that is
+  killed (or stopped badly) leaves its files behind. After many runs they pile up, and
+  messages stop arriving: topics are listed, but the camera, odometry or cmd_vel go silent
+  (seen on the course VM, see README "Troubleshooting"). With UDP only, nothing is left behind.
+
+  Use: add this line to ~/.bashrc (see README, Installation step 5):
+    export FASTRTPS_DEFAULT_PROFILES_FILE=~/ros2_ws/src/dat160_group11/rescue_team/config/fastdds_udp_only.xml
+-->
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <transport_descriptors>
+    <transport_descriptor>
+      <transport_id>udp_only</transport_id>
+      <type>UDPv4</type>
+    </transport_descriptor>
+  </transport_descriptors>
+
+  <participant profile_name="udp_only_participant" is_default_profile="true">
+    <rtps>
+      <userTransports>
+        <transport_id>udp_only</transport_id>
+      </userTransports>
+      <!-- false: do not add the built-in transports (UDP + shared memory) -->
+      <useBuiltinTransports>false</useBuiltinTransports>
+    </rtps>
+  </participant>
+</profiles>
