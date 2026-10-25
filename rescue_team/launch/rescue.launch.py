@@ -16,7 +16,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
-from launch.actions import TimerAction
+from launch.actions import SetEnvironmentVariable, TimerAction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -107,6 +107,8 @@ def launch_world(context):
 def generate_launch_description():
     params_file = os.path.join(
         get_package_share_directory('rescue_team'), 'config', 'params.yaml')
+    dds_profile = os.path.join(
+        get_package_share_directory('rescue_team'), 'config', 'fastdds_udp_only.xml')
     use_sim_time = LaunchConfiguration('use_sim_time')
 
     # Every one of our nodes gets params.yaml, then the robots list and use_sim_time on top.
@@ -126,7 +128,17 @@ def generate_launch_description():
                               description='Start the leader; false = only hand-sent goals'),
         DeclareLaunchArgument('use_sim_time', default_value='true',
                               description='Use the Gazebo clock. Leave true'),
+        DeclareLaunchArgument('udp_dds', default_value='true',
+                              description='Fast-DDS over UDP only for everything started here'),
     ]
+
+    # Fast-DDS over UDP for every process this file starts (Gazebo, cameras, aruco_node and our
+    # nodes), whatever the PC's own settings are. With the default (shared memory), 0.9 MB camera
+    # images reached aruco_node only 0.5-4 times per second and a spinning robot often missed the
+    # marker; over UDP it was 14-22 per second (SPK-02, ARCHITECTURE.md section 7.1).
+    udp_setting = SetEnvironmentVariable(
+        'FASTRTPS_DEFAULT_PROFILES_FILE', dds_profile,
+        condition=IfCondition(LaunchConfiguration('udp_dds')))
 
     # One robot_handler in each robot namespace (/tb3_0/robot_handler, /tb3_1/robot_handler).
     robot_handlers = [
@@ -160,6 +172,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         arguments
+        + [udp_setting]  # first, so that everything below inherits it
         + [OpaqueFunction(function=launch_world)]
         + robot_handlers
         + [marker_detector, leader, rviz, scoring])
