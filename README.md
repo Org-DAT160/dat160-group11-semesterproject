@@ -162,6 +162,7 @@ watch the run.
 | `gui` | `true`, `false` | `false` | Show the Gazebo window. It is off by default because it slows the simulation, and scoring measures wall-clock time. |
 | `leader` | `true`, `false` | `true` | Start the `leader`. With `false`, the robots only drive to goals sent by hand. |
 | `use_sim_time` | `true`, `false` | `true` | Passed to all our nodes. Leave `true`. |
+| `udp_dds` | `true`, `false` | `true` | Fast-DDS over UDP only for every process this file starts (Gazebo, cameras, `aruco_node`, our nodes). With shared memory, camera images reached `aruco_node` only 0.5–4 times per second (SPK-02). |
 
 ### Only our nodes (world already running)
 

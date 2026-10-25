@@ -31,7 +31,7 @@
     heading_gain: 1.5              # 1/s, k_h in omega = k_h * heading_error
 
     # --- Spin at viewpoints (robot_handler, leader) ---
-    spin_speed: 1.5                # rad/s, fastest rate that still detects markers (SPK-02)
+    spin_speed: 1.5                # rad/s, turn rate at viewpoints (SPK-02: turn-and-look, ARCHITECTURE 6.8)
     spin_angle: 5.2                # rad, 2*pi minus the camera's horizontal field of view
 
     # --- Lidar safety stop (robot_handler) ---
@@ -54,13 +54,13 @@
     max_replans: 5                 # recoveries before the goal ends as "stuck"
 
     # --- Marker detection (marker_detector) ---
-    marker_max_range: 2.5          # m, sightings farther away are discarded (SPK-02)
+    marker_max_range: 3.0          # m, sightings farther away are discarded (SPK-02: 3 cm error at 3 m)
 
     # --- Reporting (leader) ---
     min_sightings: 3               # sightings needed before a marker is reported
 
     # --- Exploration (leader) ---
-    viewpoint_spacing: 1.5         # m, distance between viewpoints in the lattice (SPK-02)
+    viewpoint_spacing: 1.5         # m, distance between viewpoints (SPK-02: detection 1.0-3.5 m)
     viewpoint_wall_distance: 1.5   # m, a viewpoint must be at most this far from a wall
     spin_clearance: 0.40           # m, a viewpoint must be at least this far from a wall
 
