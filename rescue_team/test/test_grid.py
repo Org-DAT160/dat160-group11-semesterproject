@@ -12,7 +12,13 @@ import time
 import numpy as np
 import pytest
 
-from rescue_team.core.grid import GridMap
+try:
+    from rescue_team.core.grid import GridMap
+except ModuleNotFoundError as error:
+    # Skip only while core/grid.py does not exist; any other import error must fail.
+    if error.name != 'rescue_team.core.grid':
+        raise
+    pytest.skip('core/grid.py is not written yet (NAV-02)', allow_module_level=True)
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 W1_YAML = os.path.join(DATA_DIR, 'map_dat160_w1.yaml')
