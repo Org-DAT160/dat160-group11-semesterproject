@@ -9,12 +9,13 @@ No ROS imports here (see docs/CODE_STRUCTURE.md): the functions work on NumPy
 arrays, so they can be tested with pytest without starting ROS.
 """
 import math
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Sequence
 
 import numpy as np
 
 from rescue_team.core.geometry import Cell, Point
 from rescue_team.core.grid import GridMap
+from rescue_team.core.path import cells_to_points, simplify_path
 
 # The 8-neighbourhood as (row, col) offsets. A step is diagonal when both are non-zero.
 NEIGHBOURS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
@@ -211,3 +212,73 @@ def cost_at(field: np.ndarray, grid: GridMap, point: Point) -> Optional[float]:
 
     # A plain float instead of np.float64.
     return float(value)
+
+
+class DistanceTransformPlanner:
+    """
+    Plans a path on a planning grid with the distance transform.
+
+    Created once with the settings from params.yaml and used for many plans
+    (ARCHITECTURE.md sections 6.3 and 6.6).
+    """
+
+    def __init__(self, avoid_radius: float, max_snap_radius: int) -> None:
+        """Store the disc radius in metres (peer_plan_clearance) and the snap radius in cells."""
+        self.avoid_radius = avoid_radius
+        self.max_snap_radius = max_snap_radius
+
+    def _block_discs(self, grid: GridMap, avoid: Sequence[Point]) -> np.ndarray:
+        """Copy of the grid's occupied cells with a disc around every avoid point."""
+        # A copy, so the discs only exist for this plan and never end up in the grid.
+        blocked = grid.occupied.copy()
+        # Radius in cells, plus one because the point can lie anywhere in its cell.
+        reach = math.ceil(self.avoid_radius / grid.resolution) + 1
+
+        for px, py in avoid:
+            r0, c0 = grid.world_to_cell(px, py)
+            # Search the square around the point; keep the cells inside the circle.
+            for dr in range(-reach, reach + 1):
+                for dc in range(-reach, reach + 1):
+                    r, c = r0 + dr, c0 + dc
+                    if not grid.in_bounds(r, c):
+                        continue
+                    # A cell is in the disc if its centre is, compared in metres.
+                    x, y = grid.cell_to_world(r, c)
+                    if math.hypot(x - px, y - py) <= self.avoid_radius:
+                        blocked[r, c] = True
+
+        return blocked
+
+    def plan(self, grid: GridMap, start: Point, goal: Point,
+             avoid: Sequence[Point] = ()) -> Optional[List[Point]]:
+        """
+        Plan a path from start to goal in metres, around discs at the avoid points.
+
+        Start and goal are snapped to the nearest free cell of the grid, without the
+        discs. The discs only apply to this call. Returns the simplified path from
+        the start cell centre to the goal cell centre, or None if there is no path.
+        """
+        # Snap on the grid alone: a robot close to a wall may stand in the inflated area.
+        start_cell = nearest_free_cell(grid.occupied, grid.world_to_cell(*start),
+                                       self.max_snap_radius)
+        goal_cell = nearest_free_cell(grid.occupied, grid.world_to_cell(*goal),
+                                      self.max_snap_radius)
+
+        if start_cell is None or goal_cell is None:
+            return None
+
+        # The same blocked cells are used for the field and the line-of-sight check.
+        blocked = self._block_discs(grid, avoid)
+
+        # Field from the goal and descent from the start, so the path runs start -> goal.
+        # A start or goal inside a disc is blocked here, which gives None below.
+        field = cost_field(blocked, grid.resolution, [goal_cell])
+        cells = descend(field, start_cell)
+
+        if cells is None:
+            return None
+
+        points = cells_to_points(grid, cells)
+
+        # Same blocked cells as the field, so a shortcut never cuts through a disc.
+        return simplify_path(grid, blocked, points)
