@@ -275,7 +275,8 @@ travel distance from a robot to a point, a function that computes meeting points
 
 Every `SendGoal` carries a new `goal_id` and gets a **deadline**. Let `cost` be
 the travel distance from the robot to the target and `spin_time` the spin
-timeout `2 · spin_angle / spin_speed` (§6.8):
+timeout `2 · (spin_angle / spin_speed + ceil(spin_angle / spin_step) · spin_pause)`,
+twice the nominal turn-and-look time (§6.8):
 
 ```
 deadline = now + goal_timeout_base + 3 · cost / max_linear_speed  (+ spin_time if the goal spins)
@@ -520,7 +521,14 @@ per full turn at 1.5 m varied between runs: 22–51 at 0.3 rad/s, 17–20 at 0.5
 second. **Recommended:** turn in steps of about 50° (less than the 62° HFOV, so the
 views overlap) at `spin_speed` and stand still for about 0.5 s after each step. A
 look-around then takes about 7 s, with about 8 detections of every visible marker.
-Decided when the spin is implemented (NAV-04).
+
+**Decided (NAV-04): turn and look.** The spin is split into
+`n = ceil(spin_angle / spin_step)` equal steps. Each step turns at `spin_speed`
+until the odometry yaw has advanced by `spin_angle / n`, and is followed by a
+standstill of `spin_pause`. With 5.2 rad, 0.87 rad and 0.5 s that is 6 steps of
+50° and a nominal time of
+`spin_angle / spin_speed + n · spin_pause` ≈ 3.5 s + 3.0 s = 6.5 s. The spin ends
+after twice the nominal time at the latest.
 
 ### 6.9 Alternatives considered
 
@@ -829,6 +837,8 @@ parameters it uses. Initial values, to be tuned in test runs:
 | `heading_gain` | robot_handler | 1.5 1/s | `k_h` in `ω = k_h · e` |
 | `spin_speed` | robot_handler, leader | 1.5 rad/s (SPK-02: turn rate between look steps, §6.8) | Rotation rate at viewpoints; the highest rate with reliable detection |
 | `spin_angle` | robot_handler, leader | 5.2 rad | Rotation at viewpoints (2π − HFOV) |
+| `spin_step` | robot_handler, leader | 0.87 rad (50°, SPK-02) | Largest turn between two looks; less than the 62° HFOV so the views overlap |
+| `spin_pause` | robot_handler, leader | 0.5 s (SPK-02) | Standstill after every spin step, so the camera gets sharp images |
 | `obstacle_stop_distance` | robot_handler | 0.35 m | Lidar safety stop distance ahead of `base_footprint`; also the rear clearance when reversing |
 | `obstacle_half_width` | robot_handler | 0.20 m | Half width of the safety stop zone |
 | `lidar_offset_x` | robot_handler | −0.064 m (verified in SPK-01) | Lidar ray origin along the robot's x axis, relative to `base_footprint` |

@@ -33,6 +33,8 @@
     # --- Spin at viewpoints (robot_handler, leader) ---
     spin_speed: 1.5                # rad/s, turn rate at viewpoints (SPK-02: turn-and-look, ARCHITECTURE 6.8)
     spin_angle: 5.2                # rad, 2*pi minus the camera's horizontal field of view
+    spin_step: 0.87                # rad, largest turn between two looks (50 deg, less than the 62 deg HFOV)
+    spin_pause: 0.5                # s, standstill after every spin step so the camera gets sharp images
 
     # --- Lidar safety stop (robot_handler) ---
     obstacle_stop_distance: 0.35   # m, stop if something is this close ahead (also rear check when reversing)
