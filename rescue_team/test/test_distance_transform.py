@@ -22,7 +22,13 @@ except ModuleNotFoundError as error:
     pytest.skip('core/distance_transform.py is not written yet (NAV-03)',
                 allow_module_level=True)
 
+from rescue_team.core import distance_transform
 from rescue_team.core.grid import GridMap
+
+# The planner is written after the functions above; skip only its tests until it exists.
+DistanceTransformPlanner = getattr(distance_transform, 'DistanceTransformPlanner', None)
+needs_planner = pytest.mark.skipif(DistanceTransformPlanner is None,
+                                   reason='DistanceTransformPlanner is not written yet (NAV-03)')
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 W1_YAML = os.path.join(DATA_DIR, 'map_dat160_w1.yaml')
@@ -369,3 +375,235 @@ def test_full_field_on_w1_is_fast(w1_planning_grid):
     assert math.isfinite(field[other])
     # The free area outside the arena is closed off by the outer wall.
     assert math.isinf(field[0, 0])
+
+
+# --- DistanceTransformPlanner -------------------------------------------------------------
+# Resolution 1 m and origin (0, 0) unless stated otherwise: the centre of cell (r, c)
+# is (c + 0.5, r + 0.5).
+
+def centre(r, c):
+    return (c + 0.5, r + 0.5)
+
+
+def disc(grid, point, radius):
+    """Cells whose centre is within radius of point, worked out cell by cell."""
+    rows, cols = grid.occupied.shape
+    mask = np.zeros((rows, cols), dtype=bool)
+    for r in range(rows):
+        for c in range(cols):
+            x, y = grid.cell_to_world(r, c)
+            mask[r, c] = math.hypot(x - point[0], y - point[1]) <= radius
+    return mask
+
+
+def crosses_blocked(grid, blocked, a, b):
+    """
+    Independent check: does the line run through blocked cells for more than 0.3 cell?
+
+    line_of_sight samples every quarter cell, so it may miss a shorter corner clip.
+    """
+    length = math.hypot(b[0] - a[0], b[1] - a[1])
+    n = max(1, int(math.ceil(length / grid.resolution * 20)))
+    step = length / n
+    run = 0.0
+    for i in range(n + 1):
+        t = i / n
+        r, c = grid.world_to_cell(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+        if not grid.in_bounds(r, c):
+            return True
+        if blocked[r, c]:
+            run += step
+            if run > 0.3 * grid.resolution:
+                return True
+        else:
+            run = 0.0
+    return False
+
+
+def assert_clear_path(grid, blocked, path):
+    """Every point is in a free cell and no segment runs through a blocked cell."""
+    for x, y in path:
+        r, c = grid.world_to_cell(x, y)
+        assert grid.in_bounds(r, c) and not blocked[r, c]
+    for a, b in zip(path, path[1:]):
+        assert not crosses_blocked(grid, blocked, a, b)
+
+
+def path_length(path):
+    return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(path, path[1:]))
+
+
+OPEN = '\n'.join(['...........'] * 7)
+
+
+@needs_planner
+def test_plan_in_open_space_is_a_straight_line():
+    grid = make_grid('........\n........\n........', 1.0, (0.0, 0.0))
+    planner = DistanceTransformPlanner(avoid_radius=1.0, max_snap_radius=2)
+    assert planner.plan(grid, (0.5, 1.5), (7.5, 1.5)) == [(0.5, 1.5), (7.5, 1.5)]
+
+
+@needs_planner
+def test_plan_goes_around_a_wall():
+    grid = make_grid("""
+        ........
+        ...#....
+        ...#....
+        ...#....
+        ........
+    """, 1.0, (0.0, 0.0))
+    planner = DistanceTransformPlanner(avoid_radius=1.0, max_snap_radius=2)
+    path = planner.plan(grid, centre(2, 1), centre(2, 6))
+    assert path is not None
+    assert path[0] == centre(2, 1)
+    assert path[-1] == centre(2, 6)
+    assert len(path) > 2
+    assert path_length(path) > 5.0
+    assert_clear_path(grid, grid.occupied, path)
+
+
+@needs_planner
+def test_plan_avoid_disc_forces_a_detour():
+    grid = make_grid(OPEN, 1.0, (0.0, 0.0))
+    planner = DistanceTransformPlanner(avoid_radius=1.5, max_snap_radius=2)
+    start, goal, other = centre(3, 0), centre(3, 10), centre(3, 5)
+
+    assert planner.plan(grid, start, goal) == [start, goal]
+
+    path = planner.plan(grid, start, goal, avoid=[other])
+    assert path is not None
+    assert path[0] == start
+    assert path[-1] == goal
+    assert len(path) > 2
+    # Neither the points nor the simplified segments enter the disc.
+    assert_clear_path(grid, disc(grid, other, 1.5), path)
+
+
+@needs_planner
+def test_plan_respects_several_avoid_points():
+    grid = make_grid(OPEN, 1.0, (0.0, 0.0))
+    planner = DistanceTransformPlanner(avoid_radius=1.2, max_snap_radius=2)
+    others = [centre(2, 4), centre(5, 7)]
+    path = planner.plan(grid, centre(3, 0), centre(3, 10), avoid=others)
+    assert path is not None
+    blocked = disc(grid, others[0], 1.2) | disc(grid, others[1], 1.2)
+    assert_clear_path(grid, blocked, path)
+
+
+@needs_planner
+def test_plan_avoid_disc_is_for_that_call_only():
+    grid = make_grid(OPEN, 1.0, (0.0, 0.0))
+    before = grid.occupied.copy()
+    planner = DistanceTransformPlanner(avoid_radius=1.5, max_snap_radius=2)
+    start, goal = centre(3, 0), centre(3, 10)
+
+    planner.plan(grid, start, goal, avoid=[centre(3, 5)])
+
+    assert np.array_equal(grid.occupied, before)
+    assert planner.plan(grid, start, goal) == [start, goal]
+
+
+@needs_planner
+def test_plan_snaps_start_and_goal_out_of_walls():
+    # Start and goal lie in the blocked first and last column; each moves one cell in.
+    grid = make_grid("""
+        #....#
+        #....#
+        #....#
+    """, 1.0, (0.0, 0.0))
+    planner = DistanceTransformPlanner(avoid_radius=1.0, max_snap_radius=2)
+    assert planner.plan(grid, centre(1, 0), centre(1, 5)) == [centre(1, 1), centre(1, 4)]
+
+
+@needs_planner
+def test_plan_start_or_goal_too_deep_in_a_wall_is_none():
+    # The nearest free cell is 4 cells away from (1, 0).
+    grid = make_grid("""
+        ####....
+        ####....
+        ####....
+    """, 1.0, (0.0, 0.0))
+    assert DistanceTransformPlanner(1.0, 1).plan(grid, centre(1, 0), centre(1, 7)) is None
+    assert DistanceTransformPlanner(1.0, 1).plan(grid, centre(1, 7), centre(1, 0)) is None
+    path = DistanceTransformPlanner(1.0, 4).plan(grid, centre(1, 0), centre(1, 7))
+    assert path == [centre(1, 4), centre(1, 7)]
+
+
+@needs_planner
+def test_plan_snapping_ignores_the_discs():
+    # Start and goal are snapped on the grid alone, so a start or goal inside a disc
+    # stays there and blocks the plan (robot_handler then plans without the disc).
+    grid = make_grid(OPEN, 1.0, (0.0, 0.0))
+    planner = DistanceTransformPlanner(avoid_radius=1.5, max_snap_radius=5)
+    start, goal = centre(3, 0), centre(3, 10)
+    assert planner.plan(grid, start, goal, avoid=[centre(3, 1)]) is None
+    assert planner.plan(grid, start, goal, avoid=[centre(3, 9)]) is None
+
+
+@needs_planner
+def test_plan_without_a_path_is_none():
+    grid = make_grid("""
+        .......
+        ...###.
+        ...#.#.
+        ...###.
+    """, 1.0, (0.0, 0.0))
+    planner = DistanceTransformPlanner(avoid_radius=1.0, max_snap_radius=2)
+    assert planner.plan(grid, centre(0, 0), centre(2, 4)) is None
+    assert planner.plan(grid, centre(2, 4), centre(0, 0)) is None
+
+
+@needs_planner
+def test_plan_start_and_goal_in_the_same_cell():
+    grid = make_grid('...\n...', 1.0, (0.0, 0.0))
+    planner = DistanceTransformPlanner(avoid_radius=1.0, max_snap_radius=2)
+    assert planner.plan(grid, (1.2, 0.3), (1.8, 0.7)) == [centre(0, 1)]
+
+
+@needs_planner
+def test_plan_uses_metric_coordinates():
+    # Resolution 0.5 m and an origin away from (0, 0): cell (1, 1) is centred at (-0.25, 2.75).
+    grid = make_grid('.....\n.....\n.....', 0.5, (-1.0, 2.0))
+    planner = DistanceTransformPlanner(avoid_radius=0.5, max_snap_radius=2)
+    path = planner.plan(grid, (-0.3, 2.7), (0.8, 2.8))
+    assert path == [pytest.approx((-0.25, 2.75)), pytest.approx((0.75, 2.75))]
+
+
+@pytest.fixture(scope='module')
+def w1_grids():
+    static = GridMap.from_yaml(W1_YAML).downsample(10)
+    return static, static.inflate(0.30)
+
+
+@needs_planner
+def test_plan_on_w1_with_start_and_goal_inside_inflated_walls(w1_grids):
+    static, grid = w1_grids
+    start, goal = (4.95, -6.65), (-3.35, 8.05)
+    # Both lie next to a wall: free in the static grid, blocked in the planning grid.
+    for point in (start, goal):
+        r, c = grid.world_to_cell(*point)
+        assert not static.occupied[r, c]
+        assert grid.occupied[r, c]
+
+    planner = DistanceTransformPlanner(avoid_radius=0.6, max_snap_radius=5)
+    path = planner.plan(grid, start, goal)
+
+    assert path is not None
+    # Snapped by at most max_snap_radius cells (0.5 m) plus half a cell to the centre.
+    assert math.hypot(path[0][0] - start[0], path[0][1] - start[1]) <= 0.5 + 0.08
+    assert math.hypot(path[-1][0] - goal[0], path[-1][1] - goal[1]) <= 0.5 + 0.08
+    assert len(path) >= 3
+    assert_clear_path(grid, grid.occupied, path)
+
+
+@needs_planner
+def test_plan_on_w1_avoids_the_other_robot(w1_grids):
+    _, grid = w1_grids
+    # Robot at the spawn (0, -1) plans past the other robot standing at (0, 1).
+    start, goal, other = (0.0, -1.0), (0.0, 2.5), (0.0, 1.0)
+    planner = DistanceTransformPlanner(avoid_radius=0.6, max_snap_radius=5)
+
+    path = planner.plan(grid, start, goal, avoid=[other])
+
+    assert path is not None
+    assert_clear_path(grid, grid.occupied | disc(grid, other, 0.6), path)
