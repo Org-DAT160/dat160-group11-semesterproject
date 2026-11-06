@@ -4,9 +4,9 @@ Navigation node, one instance per robot namespace (ARCHITECTURE.md sections 6.7,
 Runs as /tb3_0/robot_handler and /tb3_1/robot_handler. It offers the `navigate_to`
 action: drive to a target and, if requested, turn and look for markers there.
 
-NAV-04 scope: the robot drives straight to the target with GoToPointController.
-Path planning (NAV-05) and the lidar safety stop, recovery and two-robot rules
-(NAV-06) are added later; the `navigate` method is where they go.
+NAV-05 scope: the robot plans a path with DistanceTransformPlanner on the inflated
+grid and follows it point by point with GoToPointController. The lidar safety stop,
+recovery and two-robot rules (NAV-06) are added later in `navigate`.
 
 Goal handling: one goal at a time. A new goal becomes the active one at once, and
 an older goal that is still running notices it at its next step and ends with
@@ -33,8 +33,10 @@ from sensor_msgs.msg import LaserScan
 from rescue_interfaces.action import NavigateTo
 
 from rescue_team.core.controller import GoToPointController
+from rescue_team.core.distance_transform import DistanceTransformPlanner
 from rescue_team.core.geometry import distance, Pose2D, rotate, wrap_angle, yaw_from_quaternion
 from rescue_team.core.grid import GridMap
+from rescue_team.core.path import remaining_length
 
 CONTROL_PERIOD = 0.05      # s, wall time between two control steps
 READY_PERIOD = 0.5         # s, how often the node checks whether it can start the action server
@@ -53,6 +55,9 @@ class RobotHandler(Node):
         p = {name: self.declare_parameter(name, default).value for name, default in (
             ('robots', ['tb3_0', 'tb3_1']),
             ('grid_resolution', 0.10),
+            ('inflation_radius', 0.30),
+            ('waypoint_tolerance', 0.05),
+            ('peer_plan_clearance', 0.60),
             ('goal_tolerance', 0.10),
             ('turn_threshold', 0.5),
             ('max_linear_speed', 0.26),
@@ -81,9 +86,15 @@ class RobotHandler(Node):
             distance_gain=p['distance_gain'], heading_gain=p['heading_gain'],
             turn_threshold=p['turn_threshold'])
 
+        self.planner = DistanceTransformPlanner(
+            avoid_radius=p['peer_plan_clearance'],
+            max_snap_radius=5
+        )
         # ---------- latest sensor data (written by callbacks, read by the goal) ----------
         self.pose = None                 # Pose2D of this robot, map frame (odom = map, SPK-01)
         self.static_grid = None          # GridMap of /map at grid_resolution
+        self.planning_grid = None        # inflated by inflation_radius, for the planner
+        self.known_wall_grid = None      # inflated by one cell (safety stop in NAV-06)
         self.scan = None                 # latest LaserScan (safety stop in NAV-06)
         self.peer_position = None        # other robot's (x, y)
         self.peer_velocity = (0.0, 0.0)  # other robot's velocity in the map frame
@@ -111,14 +122,18 @@ class RobotHandler(Node):
     # ---------- sensor callbacks ----------
 
     def on_map(self, msg: OccupancyGrid) -> None:
-        """Build the static grid at grid_resolution (planning grids are added in NAV-05)."""
+        """Build the static, planning and known-wall grids (section 6.1)."""
         try:
+            if self.planning_grid is not None:
+                return
             info = msg.info
             full = GridMap.from_occupancy_grid(
                 msg.data, info.width, info.height, info.resolution,
                 (info.origin.position.x, info.origin.position.y))
             factor = max(1, int(round(self.p['grid_resolution'] / info.resolution)))
             self.static_grid = full.downsample(factor)
+            self.planning_grid = self.static_grid.inflate(self.p['inflation_radius'])
+            self.known_wall_grid = self.static_grid.inflate(self.p['grid_resolution'])
             rows, cols = self.static_grid.occupied.shape
             self.get_logger().info(
                 f'map received: {info.width}x{info.height} at {info.resolution} m, '
@@ -155,7 +170,7 @@ class RobotHandler(Node):
     def on_ready_timer(self) -> None:
         """Create the action server once the map and the own pose are known."""
         try:
-            if self.static_grid is None or self.pose is None:
+            if self.planning_grid is None or self.pose is None:
                 return
             self.action_server = ActionServer(
                 self, NavigateTo, 'navigate_to',
@@ -222,30 +237,63 @@ class RobotHandler(Node):
 
     # ---------- goal steps ----------
 
-    def navigate(self, goal_handle, target) -> str:
+    def plan_path(self, goal_handle, target):
         """
-        Drive to `target`. Return reached, preempted or cancelled.
+        Stop, then plan from the robot's position to `target` (sections 6.2-6.3).
 
-        NAV-04: straight to the target with GoToPointController. NAV-05 replaces this
-        with planning and path following; NAV-06 adds the safety stop and recovery.
+        Return the simplified path as a list of (x, y) points from the start cell
+        centre to the goal cell centre, or None if no path exists.
+        """
+        self.publish_velocity(goal_handle, 0.0, 0.0)
+
+        return self.planner.plan(self.planning_grid, (self.pose.x, self.pose.y), target)
+
+    def follow_path(self, goal_handle, path) -> str:
+        """
+        Drive along `path` point by point (section 6.4). Return reached, preempted or cancelled.
+
+        path[0] is the cell the robot stands in, so it starts at path[1]. Intermediate
+        points count as passed within waypoint_tolerance, the last one within
+        goal_tolerance. The feedback is the remaining length along the path.
         """
         feedback = NavigateTo.Feedback()
+        index = 1
         while rclpy.ok():
             ended = self.check_goal(goal_handle)
+            target = path[index]
+            is_last = index == len(path) - 1
+            tolerance = self.p['goal_tolerance'] if is_last else self.p['waypoint_tolerance']
             if ended:
                 return ended
 
             d = distance((self.pose.x, self.pose.y), target)
-            if d < self.p['goal_tolerance']:
-                return 'reached'
+            if d < tolerance:
+                if is_last:
+                    return 'reached'
+                index += 1
+                continue
 
             v, omega = self.controller.compute(self.pose, target)
             if not self.publish_velocity(goal_handle, v, omega):
                 return 'preempted'
-            feedback.distance_left = float(d)
+            feedback.distance_left = remaining_length(path, index, (self.pose.x, self.pose.y))
             goal_handle.publish_feedback(feedback)
             time.sleep(CONTROL_PERIOD)
         return 'aborted'
+
+    def navigate(self, goal_handle, target) -> str:
+        """
+        Plan a path to `target` and follow it. Return reached, no path, preempted or cancelled.
+
+        A path of one point means the robot already stands in the goal cell. NAV-06 adds
+        the safety stop and recovery here.
+        """
+        path = self.plan_path(goal_handle, target)
+        if path is None:
+            return 'no path'
+        if len(path) == 1:
+            return 'reached'
+        return self.follow_path(goal_handle, path)
 
     def spin(self, goal_handle) -> str:
         """
