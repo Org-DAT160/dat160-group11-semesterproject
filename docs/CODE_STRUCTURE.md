@@ -330,9 +330,10 @@ Events in, commands out. No ROS, no clock.
 | `CancelGoal` | `robot: str` | Cancel the active goal |
 | `Finish` | — | Log the result |
 
-**`@dataclass MissionParams`** — `hold_time: float`, `meet_max_attempts: int`,
+**`@dataclass MissionParams`** — `meet_hold_time: float`, `meet_max_attempts: int`,
 `goal_timeout_base: float`, `max_linear_speed: float`, `spin_time: float`
-(`spin_time = 2 · spin_angle / spin_speed`).
+(the spin timeout from ARCHITECTURE.md §5.1:
+`2 · (spin_angle / spin_speed + ceil(spin_angle / spin_step) · spin_pause)`).
 
 **`class Mission`**
 
@@ -343,9 +344,10 @@ Events in, commands out. No ROS, no clock.
 | `state` | `@property -> MissionState` | Current state, for logging and tests |
 | `meeting_done` | `@property -> bool` | The big-fire meeting has been held |
 
+One method per state: `_handle_wait`, `_handle_explore`, `_handle_meet`.
 Internal helpers follow ARCHITECTURE.md §5.3: `_try_start_meeting(now)`,
-`_assign(now)`, `_send(robot, target, spin, now)` (new `goal_id` and deadline),
-`_expired(now)` and `_finish()`.
+`_meeting_failed(robot, now)`, `_assign(now)`, `_send(robot, target, spin, now)`
+(new `goal_id` and deadline), `_clear_goal(robot)`, `_expired(now)` and `_finish()`.
 
 ---
 
