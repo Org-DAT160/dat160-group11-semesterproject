@@ -407,6 +407,8 @@ into mission events.
 | `on_found_marker` | `(msg: FoundMarker) -> None` | `registry.add(Sighting(...))` |
 | `on_timer` | `() -> None` | Before `Started`: compute the viewpoints once the map and all odometry are there, check the start conditions, and send `Started` when they have held for 2 s. After that: `Tick`. Always: `report_markers` |
 | `on_log_timer` | `() -> None` | Until `Started`, every 5 s: log the unmet start conditions, and log an error if a robot's `aruco_markers` or `camera/image_raw` has no publisher |
+| `unmet_conditions` | `(now: float) -> List[str]` | The start conditions of ARCHITECTURE.md §11 that do not hold yet; empty when ready |
+| `send_started` | `(now: float) -> None` | `dispatch(Started(...))` with the robots' start positions and `compute_viewpoints()` |
 | `compute_viewpoints` | `() -> List[List[Point]]` | Start field from both robots' snapped cells, then `generate_viewpoints` for pass 0 and pass 1 |
 | `dispatch` | `(event) -> None` | `self.execute(self.mission.handle(event))`; log state changes |
 | `execute` | `(commands: List[Command]) -> None` | Run each command as a ROS call |
