@@ -7,6 +7,11 @@ events, calls `Mission.handle(event)` and executes the commands it gets back:
     /map, /<robot>/odom, action results, timer -> Event -> Mission.handle(event)
     -> [SendGoal, CancelGoal, Finish] -> send_goal_async / cancel_goal_async / log
 
+Reporting (section 7.2): every sighting on `/found_marker` goes into the
+`MarkerRegistry`. On every timer tick, before and after `Started`, the reports the
+registry says are due are sent to scoring with `call_async`; every answer goes back
+to the registry, and a newly accepted marker is dispatched as `MarkerAccepted`.
+
 Start-up (section 11): `Started` is sent once the simulation clock runs, `/map` has
 arrived, odometry has arrived from every robot, `/set_marker_position` is available
 and every `/<robot>/navigate_to` server is available, and all of that has held for
@@ -18,7 +23,6 @@ Single-threaded (section 10): every call is asynchronous (`send_goal_async`,
 `cancel_goal_async`) with a done callback, and nothing waits inside a callback.
 
 Parts that come with later issues; until then the node uses simple stand-ins:
-    MIS-03  reporting markers to scoring
     MIS-04  meeting points (meeting_points returns None: the meeting stays pending)
     MIS-05  GreedyAllocator, MIS-06 viewpoints (no viewpoints: robots wait after Started)
     MIS-06  path cost from a distance field (straight-line distance until then)
@@ -36,17 +40,20 @@ from action_msgs.msg import GoalStatus
 from geometry_msgs.msg import Point as PointMsg
 from nav_msgs.msg import OccupancyGrid, Odometry
 from rescue_interfaces.action import NavigateTo
+from rescue_interfaces.msg import FoundMarker
 from scoring_interfaces.srv import SetMarkerPosition
 
 from rescue_team.core.geometry import distance, Point
 from rescue_team.core.grid import GridMap
+from rescue_team.core.marker_registry import MarkerRegistry, Report, Sighting
 from rescue_team.core.mission import (
-    CancelGoal, Command, Finish, GoalFinished, Mission, MissionParams,
+    CancelGoal, Command, Finish, GoalFinished, MarkerAccepted, Mission, MissionParams,
     SendGoal, Started, Tick)
 
 # Fixed values (ARCHITECTURE.md section 11), not parameters.
 START_HOLD = 2.0        # s the start conditions must hold before Started
 LOG_PERIOD = 5.0        # s between two logs of the unmet start conditions (steady clock)
+RESEND_TIMEOUT = 5.0    # s without an answer from scoring before a report is sent again
 
 STATUS_NAMES = {
     GoalStatus.STATUS_SUCCEEDED: 'SUCCEEDED',
@@ -93,7 +100,7 @@ class Leader(Node):
             ('tick_rate', 2.0), ('meet_hold_time', 3.0), ('meet_max_attempts', 3),
             ('goal_timeout_base', 20.0), ('max_linear_speed', 0.26),
             ('spin_angle', 5.2), ('spin_speed', 1.5), ('spin_step', 0.87),
-            ('spin_pause', 0.5),)}
+            ('spin_pause', 0.5), ('min_sightings', 3),)}
         self.p = p
         self.robots: List[str] = list(p['robots'])
 
@@ -113,6 +120,10 @@ class Leader(Node):
         # ---------- the mission ----------
         self.allocator = NoViewpoints()             # GreedyAllocator in MIS-05/MIS-06
         self.mission = Mission(self.allocator, self.path_cost, self.meeting_points, params)
+
+        # ---------- marker reporting (section 7.2) ----------
+        self.registry = MarkerRegistry(int(p['min_sightings']), resend_timeout=RESEND_TIMEOUT)
+        self.sighting_counts: Dict[int, int] = {}   # marker -> sightings, for the log
 
         # ---------- latest data ----------
         self.static_grid: Optional[GridMap] = None
@@ -142,6 +153,7 @@ class Leader(Node):
                 lambda msg, robot=robot: self.on_odom(robot, msg), 10)
             self.nav_clients[robot] = ActionClient(self, NavigateTo, f'/{robot}/navigate_to')
         self.report_client = self.create_client(SetMarkerPosition, '/set_marker_position')
+        self.create_subscription(FoundMarker, '/found_marker', self.on_found_marker, 50)
 
         # Mission timer on the simulation clock: Started, then Tick at tick_rate.
         self.create_timer(1.0 / float(p['tick_rate']), self.on_timer)
@@ -185,12 +197,30 @@ class Leader(Node):
         except Exception as e:
             self.get_logger().error(f'on_odom({robot}): {e!r}')
 
+    def on_found_marker(self, msg: FoundMarker) -> None:
+        """Add one sighting to the registry (ignored once its marker is accepted)."""
+        try:
+            stamp_ns = msg.header.stamp.sec * 1_000_000_000 + msg.header.stamp.nanosec
+            sighting = Sighting(
+                marker_id=int(msg.marker_id), x=float(msg.position.x), y=float(msg.position.y),
+                distance=float(msg.distance), robot=str(msg.robot), stamp_ns=int(stamp_ns))
+            if self.registry.add(sighting):
+                count = self.sighting_counts.get(sighting.marker_id, 0) + 1
+                self.sighting_counts[sighting.marker_id] = count
+                if count == 1:
+                    self.get_logger().info(
+                        f'marker {sighting.marker_id}: first sighting by {sighting.robot} at '
+                        f'({sighting.x:.2f}, {sighting.y:.2f}), {sighting.distance:.2f} m away')
+        except Exception as e:
+            self.get_logger().error(f'on_found_marker: {e!r}')
+
     # ---------- timers ----------
 
     def on_timer(self) -> None:
-        """Before Started: check the start conditions. After that: send Tick."""
+        """Report due markers. Before Started: check the start conditions; after: send Tick."""
         try:
             now = self.now()
+            self.report_markers(now)
             if self.started:
                 self.dispatch(Tick(now))
                 return
@@ -275,6 +305,42 @@ class Leader(Node):
     def meeting_points(self, exclude: Sequence[Point]) -> Optional[Dict[str, Point]]:
         """Return one meeting point per robot near the big fire. Stand-in until MIS-04: None."""
         return None
+
+    # ---------- marker reporting (section 7.2) ----------
+
+    def report_markers(self, now: float) -> None:
+        """Send every report the registry says is due, once the scoring service is up."""
+        if not self.report_client.service_is_ready():
+            return                      # nothing is marked as sent while scoring is away
+        for report in self.registry.reports_due(now):
+            request = SetMarkerPosition.Request()
+            request.marker_id = int(report.marker_id)
+            request.marker_position = PointMsg(
+                x=float(report.position[0]), y=float(report.position[1]), z=0.0)
+            self.get_logger().info(
+                f'marker {report.marker_id}: report attempt {report.attempt} at '
+                f'({report.position[0]:.3f}, {report.position[1]:.3f}) from '
+                f'{self.sighting_counts.get(report.marker_id, 0)} sightings')
+            future = self.report_client.call_async(request)
+            future.add_done_callback(
+                lambda f, report=report: self.on_report_response(report, f))
+
+    def on_report_response(self, report: Report, future) -> None:
+        """Pass the answer to the registry; dispatch MarkerAccepted for a newly accepted marker."""
+        try:
+            accepted = bool(future.result().accepted)
+            newly_accepted = self.registry.on_result(report.marker_id, report.attempt, accepted)
+            if newly_accepted:
+                all_accepted = self.registry.all_accepted()
+                self.get_logger().info(
+                    f'marker {report.marker_id}: ACCEPTED at ({report.position[0]:.3f}, '
+                    f'{report.position[1]:.3f}), all accepted={all_accepted}')
+                self.dispatch(MarkerAccepted(self.now(), report.marker_id, all_accepted))
+            elif not accepted and not self.registry.is_accepted(report.marker_id):
+                self.get_logger().warn(
+                    f'marker {report.marker_id}: attempt {report.attempt} rejected')
+        except Exception as e:
+            self.get_logger().error(f'on_report_response({report.marker_id}): {e!r}')
 
     # ---------- mission events and commands ----------
 
