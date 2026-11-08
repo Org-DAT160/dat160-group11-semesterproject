@@ -43,27 +43,30 @@ class GreedyAllocator:
 
         Viewpoints with cost None and viewpoints this robot has failed are skipped.
         """
+        # A robot holds at most one reservation; its old one may be the cheapest again.
         self.release(robot)
-        cheapest_point = None
-        lowest_cost = None
+
+        cheapest_target: Optional[Point] = None
+        cheapest_cost: Optional[float] = None
         for target in self._targets:
             if not self._is_free(target):
                 continue
             if self._failed_by.get(target) == robot:
                 continue
+            # 'is None', not 'not': a cost of 0.0 is reachable.
             target_cost = cost(robot, target)
             if target_cost is None:
                 continue
-            if cheapest_point is None or target_cost < lowest_cost:
-                cheapest_point = target
-                lowest_cost = target_cost
+            # Strictly cheaper, so the first viewpoint in the list wins a tie.
+            if cheapest_cost is None or target_cost < cheapest_cost:
+                cheapest_target = target
+                cheapest_cost = target_cost
 
-        if cheapest_point is None:
+        if cheapest_target is None:
             return None
 
-        self._reserved[robot] = cheapest_point
-
-        return cheapest_point
+        self._reserved[robot] = cheapest_target
+        return cheapest_target
 
     def complete(self, robot: str, success: bool) -> None:
         """
