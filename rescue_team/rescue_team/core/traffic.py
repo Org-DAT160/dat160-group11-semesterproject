@@ -10,7 +10,7 @@ starting ROS.
 
 from typing import List, Sequence
 
-from rescue_team.core.geometry import Point, distance
+from rescue_team.core.geometry import distance, Point
 from rescue_team.core.path import remaining_length
 
 

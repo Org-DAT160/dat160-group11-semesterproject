@@ -15,19 +15,17 @@ import math
 import time
 from typing import Optional, Tuple
 
+from geometry_msgs.msg import Point as PointMsg
 import rclpy
 from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
 from rclpy.time import Time
+from rescue_interfaces.msg import FoundMarker
+from rescue_team.core.geometry import transform_point
+from ros2_aruco_interfaces.msg import ArucoMarkers
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-
-from geometry_msgs.msg import Point as PointMsg
-from ros2_aruco_interfaces.msg import ArucoMarkers
-from rescue_interfaces.msg import FoundMarker
-
-from rescue_team.core.geometry import transform_point
 
 # Fixed values (ARCHITECTURE.md section 13), not parameters.
 VALID_IDS = range(0, 5)        # marker IDs used in the competition
@@ -86,7 +84,7 @@ class MarkerDetector(Node):
                     self.queue.popleft()
                     self.dropped += 1
                 self.queue.append((robot, msg, time.monotonic()))
-        except Exception as e:  # a crash in a callback would stop the node
+        except Exception as e:  # noqa: B902 (a crash in a callback would stop the node)
             self.get_logger().error(f'on_markers: {e!r}')
 
     def on_retry_timer(self) -> None:
@@ -103,7 +101,7 @@ class MarkerDetector(Node):
                 else:
                     waiting.append((robot, msg, received))
             self.queue = waiting
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_retry_timer: {e!r}')
 
     def on_log_timer(self) -> None:
@@ -115,7 +113,7 @@ class MarkerDetector(Node):
                     f'{self.ok_after_retry} after retry, {self.dropped} dropped, '
                     f'{self.failed_lookups} failed lookups, {len(self.queue)} queued')
             self.ok_at_once = self.ok_after_retry = self.dropped = self.failed_lookups = 0
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_log_timer: {e!r}')
 
     # ---------- processing ----------

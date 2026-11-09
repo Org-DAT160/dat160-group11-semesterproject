@@ -13,7 +13,7 @@ from typing import List
 
 import numpy as np
 
-from rescue_team.core.geometry import Cell, Point, distance
+from rescue_team.core.geometry import Cell, distance, Point
 from rescue_team.core.grid import GridMap
 
 

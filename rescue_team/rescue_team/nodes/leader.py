@@ -35,19 +35,16 @@ robot stays in the same cell.
 import math
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 
+from action_msgs.msg import GoalStatus
+from geometry_msgs.msg import Point as PointMsg
+from nav_msgs.msg import OccupancyGrid, Odometry
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.clock import Clock, ClockType
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-
-from action_msgs.msg import GoalStatus
-from geometry_msgs.msg import Point as PointMsg
-from nav_msgs.msg import OccupancyGrid, Odometry
 from rescue_interfaces.action import NavigateTo
 from rescue_interfaces.msg import FoundMarker
-from scoring_interfaces.srv import SetMarkerPosition
-
 from rescue_team.core.allocation import GreedyAllocator
 from rescue_team.core.distance_transform import (
     cost_at, cost_field, nearest_free_cell, wall_distance)
@@ -59,6 +56,7 @@ from rescue_team.core.mission import (
     CancelGoal, Command, Finish, GoalFinished, MarkerAccepted, Mission, MissionParams,
     SendGoal, Started, Tick)
 from rescue_team.core.viewpoints import generate_viewpoints
+from scoring_interfaces.srv import SetMarkerPosition
 
 # Fixed values (ARCHITECTURE.md section 11), not parameters.
 START_HOLD = 2.0        # s the start conditions must hold before Started
@@ -182,7 +180,7 @@ class Leader(Node):
             self.get_logger().info(
                 f'map received: {info.width}x{info.height} at {info.resolution} m, '
                 f'static grid {rows}x{cols} at {self.static_grid.resolution:.2f} m')
-        except Exception as e:  # a crash in a callback would stop the node
+        except Exception as e:  # noqa: B902 (a crash in a callback would stop the node)
             self.get_logger().error(f'on_map: {e!r}')
 
     def on_odom(self, robot: str, msg: Odometry) -> None:
@@ -190,7 +188,7 @@ class Leader(Node):
         try:
             p = msg.pose.pose.position
             self.positions[robot] = (float(p.x), float(p.y))
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_odom({robot}): {e!r}')
 
     def on_found_marker(self, msg: FoundMarker) -> None:
@@ -207,7 +205,7 @@ class Leader(Node):
                     self.get_logger().info(
                         f'marker {sighting.marker_id}: first sighting by {sighting.robot} at '
                         f'({sighting.x:.2f}, {sighting.y:.2f}), {sighting.distance:.2f} m away')
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_found_marker: {e!r}')
 
     # ---------- timers ----------
@@ -234,7 +232,7 @@ class Leader(Node):
                     f'all start conditions hold, Started in {START_HOLD:.0f} s')
             if now - self.ready_since >= START_HOLD:
                 self.send_started(now)
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_timer: {e!r}')
 
     def on_log_timer(self) -> None:
@@ -251,7 +249,7 @@ class Leader(Node):
                     if self.count_publishers(topic) == 0:
                         self.get_logger().error(
                             f'{topic} has no publisher: markers from {robot} will be missed')
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_log_timer: {e!r}')
 
     # ---------- start-up (section 11) ----------
@@ -432,7 +430,7 @@ class Leader(Node):
             elif not accepted and not self.registry.is_accepted(report.marker_id):
                 self.get_logger().warn(
                     f'marker {report.marker_id}: attempt {report.attempt} rejected')
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_report_response({report.marker_id}): {e!r}')
 
     # ---------- mission events and commands ----------
@@ -493,7 +491,7 @@ class Leader(Node):
                 self.get_logger().info(f'{robot}: goal {goal_id} cancelled (after accept)')
             handle.get_result_async().add_done_callback(
                 lambda f, robot=robot, goal_id=goal_id: self.on_goal_result(robot, goal_id, f))
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_goal_response({robot}, {goal_id}): {e!r}')
 
     def on_goal_result(self, robot: str, goal_id: int, future) -> None:
@@ -513,7 +511,7 @@ class Leader(Node):
                 elif result.success:
                     self.avoid_peer.discard(robot)
             self.dispatch(GoalFinished(self.now(), robot, goal_id, bool(result.success)))
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_goal_result({robot}, {goal_id}): {e!r}')
 
     def cancel_goal(self, robot: str) -> None:
