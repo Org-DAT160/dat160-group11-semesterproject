@@ -1,4 +1,5 @@
-"""Tests for core/marker_registry.py, with hand-made sightings.
+"""
+Tests for core/marker_registry.py, with hand-made sightings.
 
 Unless stated otherwise the registry uses min_sightings = 3, the default
 resend_timeout of 5 s and the marker IDs 0-4. Times are in seconds. Attempts are

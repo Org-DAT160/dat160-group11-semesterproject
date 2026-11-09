@@ -1,4 +1,5 @@
-"""Tests for core/distance_transform.py, on hand-made grids and the w1 map.
+"""
+Tests for core/distance_transform.py, on hand-made grids and the w1 map.
 
 Grids are written as text: '#' is blocked, '.' is free. The first line is row 0,
 the first character is column 0 (array indexing, no row flip involved).
@@ -369,7 +370,8 @@ def test_full_field_on_w1_is_fast(w1_planning_grid):
     field = cost_field(grid.occupied, grid.resolution, [source])
     elapsed = time.perf_counter() - started
 
-    assert elapsed < 0.5
+    # Generous limit: the course VM is 2-4x slower than a laptop.
+    assert elapsed < 3.0
     # The other robot can be reached, and no shorter than in a straight line.
     assert field[other] >= 2.0 - 1e-9
     assert math.isfinite(field[other])
@@ -398,7 +400,7 @@ def disc(grid, point, radius):
 
 def crosses_blocked(grid, blocked, a, b):
     """
-    Independent check: does the line run through blocked cells for more than 0.3 cell?
+    Check independently whether the line runs through blocked cells for more than 0.3 cell.
 
     line_of_sight samples every quarter cell, so it may miss a shorter corner clip.
     """

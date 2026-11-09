@@ -1,4 +1,5 @@
-"""Tests for core/viewpoints.py, on hand-made grids and the five course maps.
+"""
+Tests for core/viewpoints.py, on hand-made grids and the five course maps.
 
 Grids are written as text: '#' is blocked in the planning grid, '.' is free. The
 first line is row 0, the first character is column 0. Unless stated otherwise the
@@ -204,7 +205,7 @@ SPACING = 1.5
 
 @pytest.fixture(scope='module', params=sorted(SPAWN))
 def world(request):
-    """Static grid, planning grid, wall distance and the field from both starts."""
+    """Build the static grid, planning grid, wall distance and the field from both starts."""
     name = request.param
     static = GridMap.from_yaml(os.path.join(DATA_DIR, f'map_dat160_{name}.yaml')).downsample(10)
     planning = static.inflate(0.30)

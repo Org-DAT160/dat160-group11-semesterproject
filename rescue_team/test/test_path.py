@@ -1,4 +1,5 @@
-"""Tests for core/path.py, on hand-made grids and the w1 map.
+"""
+Tests for core/path.py, on hand-made grids and the w1 map.
 
 Grids are written as text: '#' is blocked, '.' is free. The first line is row 0,
 the first character is column 0. Unless stated otherwise the resolution is 1 m and
@@ -43,7 +44,7 @@ def centre(r, c):
 
 def crosses_blocked(grid, blocked, a, b):
     """
-    Independent check: does the line run through blocked cells for more than 0.3 cell?
+    Check independently whether the line runs through blocked cells for more than 0.3 cell.
 
     line_of_sight samples every quarter cell or finer, so it may miss a shorter clip of
     a corner. Leaving the grid always counts.
