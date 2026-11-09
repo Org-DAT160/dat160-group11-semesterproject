@@ -28,19 +28,16 @@ import threading
 import time
 from typing import Optional
 
+from geometry_msgs.msg import Twist
+from nav_msgs.msg import OccupancyGrid, Odometry
 import rclpy
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.clock import Clock, ClockType
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
-
-from geometry_msgs.msg import Twist
-from nav_msgs.msg import OccupancyGrid, Odometry
-from sensor_msgs.msg import LaserScan
+from rclpy.qos import DurabilityPolicy, qos_profile_sensor_data, QoSProfile, ReliabilityPolicy
 from rescue_interfaces.action import NavigateTo
-
 from rescue_team.core.controller import GoToPointController
 from rescue_team.core.distance_transform import DistanceTransformPlanner
 from rescue_team.core.geometry import distance, Pose2D, rotate, wrap_angle, yaw_from_quaternion
@@ -48,6 +45,7 @@ from rescue_team.core.grid import GridMap
 from rescue_team.core.lidar import points_ahead, scan_to_points, sector_min
 from rescue_team.core.path import ProgressMonitor, remaining_length
 from rescue_team.core.traffic import has_right_of_way, peer_conflict, remove_near
+from sensor_msgs.msg import LaserScan
 
 CONTROL_PERIOD = 0.05      # s, wall time between two control steps
 READY_PERIOD = 0.5         # s, how often the node checks whether it can start the action server
@@ -165,7 +163,7 @@ class RobotHandler(Node):
             self.get_logger().info(
                 f'map received: {info.width}x{info.height} at {info.resolution} m, '
                 f'static grid {rows}x{cols} at {self.static_grid.resolution:.2f} m')
-        except Exception as e:  # a crash in a callback would stop the node
+        except Exception as e:  # noqa: B902 (a crash in a callback would stop the node)
             self.get_logger().error(f'on_map: {e!r}')
 
     def on_odom(self, msg: Odometry) -> None:
@@ -173,7 +171,7 @@ class RobotHandler(Node):
         try:
             p, q = msg.pose.pose.position, msg.pose.pose.orientation
             self.pose = Pose2D(p.x, p.y, yaw_from_quaternion(q.x, q.y, q.z, q.w))
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_odom: {e!r}')
 
     def on_peer_odom(self, msg: Odometry) -> None:
@@ -184,7 +182,7 @@ class RobotHandler(Node):
             v = msg.twist.twist.linear
             self.peer_position = (p.x, p.y)
             self.peer_velocity = rotate((v.x, v.y), yaw)  # the twist is in the robot frame
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_peer_odom: {e!r}')
 
     def on_scan(self, msg: LaserScan) -> None:
@@ -200,7 +198,7 @@ class RobotHandler(Node):
             if self.peer_position is not None:
                 points = remove_near(points, [self.peer_position], self.p['peer_ignore_radius'])
             self.obstacle_points = points
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_scan: {e!r}')
 
     def on_ready_timer(self) -> None:
@@ -218,7 +216,7 @@ class RobotHandler(Node):
             self.ready_timer.cancel()
             self.get_logger().info(
                 f'ready: navigate_to at ({self.pose.x:.2f}, {self.pose.y:.2f})')
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'on_ready_timer: {e!r}')
 
     # ---------- action server callbacks ----------
@@ -237,7 +235,7 @@ class RobotHandler(Node):
             with self.goal_lock:
                 self.active_goal = goal_handle
             goal_handle.execute()
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'handle_accepted_callback: {e!r}')
 
     def execute_callback(self, goal_handle) -> NavigateTo.Result:
@@ -251,7 +249,7 @@ class RobotHandler(Node):
             message = self.navigate(goal_handle, (target.x, target.y))
             if message == 'reached' and spin:
                 message = self.spin(goal_handle)
-        except Exception as e:
+        except Exception as e:  # noqa: B902
             self.get_logger().error(f'execute_callback: {e!r}')
             message = 'aborted'
         finally:
