@@ -1,12 +1,21 @@
 """
-Navigation node, one instance per robot namespace (ARCHITECTURE.md sections 6.7, 6.8, 10).
+Navigation node, one instance per robot namespace (ARCHITECTURE.md sections 6, 10).
 
 Runs as /tb3_0/robot_handler and /tb3_1/robot_handler. It offers the `navigate_to`
 action: drive to a target and, if requested, turn and look for markers there.
 
-NAV-05 scope: the robot plans a path with DistanceTransformPlanner on the inflated
-grid and follows it point by point with GoToPointController. The lidar safety stop,
-recovery and two-robot rules (NAV-06) are added later in `navigate`.
+Planning and path following (NAV-05): DistanceTransformPlanner on the inflated grid,
+then GoToPointController point by point.
+
+Reactive layer and two robots (NAV-06, sections 6.5 and 6.6):
+    safety stop   no forward motion while a lidar point that is neither a known wall
+                  nor the other robot lies in the stop zone ahead
+    stuck         no progress along the path for stuck_timeout -> reverse while the rear
+                  is clear, plan again; `stuck` after max_replans
+    peer disc     every plan avoids a disc around the other robot when possible
+    conflict      stop when the other robot is on the path ahead; the robot with right
+                  of way waits, the other plans a detour; after peer_wait_timeout the
+                  first plans again and the second ends its goal with `peer`
 
 Goal handling: one goal at a time. A new goal becomes the active one at once, and
 an older goal that is still running notices it at its next step and ends with
@@ -36,13 +45,18 @@ from rescue_team.core.controller import GoToPointController
 from rescue_team.core.distance_transform import DistanceTransformPlanner
 from rescue_team.core.geometry import distance, Pose2D, rotate, wrap_angle, yaw_from_quaternion
 from rescue_team.core.grid import GridMap
-from rescue_team.core.path import remaining_length
+from rescue_team.core.lidar import points_ahead, scan_to_points, sector_min
+from rescue_team.core.path import ProgressMonitor, remaining_length
+from rescue_team.core.traffic import has_right_of_way, peer_conflict, remove_near
 
 CONTROL_PERIOD = 0.05      # s, wall time between two control steps
 READY_PERIOD = 0.5         # s, how often the node checks whether it can start the action server
 SPIN_GAIN = 6.0            # 1/s, turn rate per radian left of a spin step (slows down at the end)
 SPIN_MIN_SPEED = 0.3       # rad/s, slowest turn rate, so a step always finishes
 SPIN_TOLERANCE = 0.02      # rad, a spin step counts as done this close to its angle
+REAR_HALF_ANGLE = 0.5      # rad, half width of the rear lidar sector checked when reversing
+PEER_BEHIND_RADIUS = 0.6   # m, do not reverse while the other robot is this close behind
+CONFLICT_REPLAN_PERIOD = 1.0  # s, at most one plan per second because of the other robot
 
 
 class RobotHandler(Node):
@@ -68,6 +82,18 @@ class RobotHandler(Node):
             ('spin_angle', 5.2),
             ('spin_step', 0.87),
             ('spin_pause', 0.5),
+            ('obstacle_stop_distance', 0.35),
+            ('obstacle_half_width', 0.2),
+            ('lidar_offset_x', -0.064),
+            ('peer_ignore_radius', 0.4),
+            ('reverse_distance', 0.3),
+            ('reverse_speed', 0.1),
+            ('stuck_timeout', 8.0),
+            ('stuck_min_progress', 0.05),
+            ('max_replans', 5),
+            ('peer_stop_clearance', 0.50),
+            ('path_lookahead', 1.0),
+            ('peer_wait_timeout', 10.0),
         )}
         self.p = p
 
@@ -94,8 +120,9 @@ class RobotHandler(Node):
         self.pose = None                 # Pose2D of this robot, map frame (odom = map, SPK-01)
         self.static_grid = None          # GridMap of /map at grid_resolution
         self.planning_grid = None        # inflated by inflation_radius, for the planner
-        self.known_wall_grid = None      # inflated by one cell (safety stop in NAV-06)
-        self.scan = None                 # latest LaserScan (safety stop in NAV-06)
+        self.known_wall_grid = None      # inflated by one cell, for the safety stop
+        self.scan = None                 # latest LaserScan (rear check when reversing)
+        self.obstacle_points = []        # map points of the latest scan without walls and the peer
         self.peer_position = None        # other robot's (x, y)
         self.peer_velocity = (0.0, 0.0)  # other robot's velocity in the map frame
 
@@ -161,9 +188,18 @@ class RobotHandler(Node):
             self.get_logger().error(f'on_peer_odom: {e!r}')
 
     def on_scan(self, msg: LaserScan) -> None:
-        """Store the latest scan (used by the safety stop in NAV-06)."""
+        """Turn the scan into map points that are neither known walls nor the other robot."""
         try:
             self.scan = msg
+            if self.pose is None or self.known_wall_grid is None:
+                return
+            points = scan_to_points(msg.ranges, msg.angle_min, msg.angle_increment,
+                                    msg.range_min, msg.range_max, self.pose,
+                                    self.p['lidar_offset_x'])
+            points = [pt for pt in points if not self.known_wall_grid.is_known_wall(pt)]
+            if self.peer_position is not None:
+                points = remove_near(points, [self.peer_position], self.p['peer_ignore_radius'])
+            self.obstacle_points = points
         except Exception as e:
             self.get_logger().error(f'on_scan: {e!r}')
 
@@ -241,23 +277,43 @@ class RobotHandler(Node):
         """
         Stop, then plan from the robot's position to `target` (sections 6.2-6.3).
 
-        Return the simplified path as a list of (x, y) points from the start cell
-        centre to the goal cell centre, or None if no path exists.
+        The plan avoids a disc of peer_plan_clearance around the other robot (section
+        6.6, rule 1), except when the goal lies inside the disc or the disc leaves no
+        path; then it is planned without the disc. Return the simplified path as a
+        list of (x, y) points from the start cell centre to the goal cell centre, or
+        None if no path exists.
         """
         self.publish_velocity(goal_handle, 0.0, 0.0)
 
-        return self.planner.plan(self.planning_grid, (self.pose.x, self.pose.y), target)
+        start = (self.pose.x, self.pose.y)
+        peer = self.peer_position
+        if peer is not None and distance(target, peer) > self.p['peer_plan_clearance']:
+            path = self.planner.plan(self.planning_grid, start, target, avoid=[peer])
+            if path is not None:
+                return path
+        return self.planner.plan(self.planning_grid, start, target)
 
-    def follow_path(self, goal_handle, path) -> str:
+    def follow_path(self, goal_handle, path, conflict) -> str:
         """
-        Drive along `path` point by point (section 6.4). Return reached, preempted or cancelled.
+        Drive along `path` point by point (section 6.4).
 
         path[0] is the cell the robot stands in, so it starts at path[1]. Intermediate
         points count as passed within waypoint_tolerance, the last one within
-        goal_tolerance. The feedback is the remaining length along the path.
+        goal_tolerance. The robot does not drive forward while an obstacle is ahead
+        (section 6.5), and the goal ends with stuck when the remaining path length has
+        not dropped by stuck_min_progress within stuck_timeout. The feedback is the
+        remaining length along the path.
+
+        The other robot (section 6.6): on a conflict the robot stops and the timer in
+        `conflict` starts. With right of way it waits, and asks for a new plan after
+        peer_wait_timeout; without right of way it asks for a new plan at once (at most
+        once per second) and ends with peer after peer_wait_timeout. Waiting does not
+        count as being stuck. Return reached, stuck, replan, peer, preempted or cancelled.
         """
         feedback = NavigateTo.Feedback()
         index = 1
+        monitor = ProgressMonitor(self.p['stuck_timeout'], self.p['stuck_min_progress'])
+        monitor.reset(self.now(), remaining_length(path, index, (self.pose.x, self.pose.y)))
         while rclpy.ok():
             ended = self.check_goal(goal_handle)
             target = path[index]
@@ -272,28 +328,90 @@ class RobotHandler(Node):
                     return 'reached'
                 index += 1
                 continue
+            if self.peer_blocks(path, index):
+                if not self.publish_velocity(goal_handle, 0.0, 0.0):
+                    return 'preempted'
+                now = self.now()
+                if conflict['since'] is None:
+                    conflict['since'] = now
+                    self.get_logger().info('conflict with the other robot: stopped')
+                monitor.reset(now, remaining_length(path, index, (self.pose.x, self.pose.y)))
+                waited = now - conflict['since']
+                right_of_way = has_right_of_way(self.robot, self.peer, self.p['robots'])
+                if not right_of_way and waited >= self.p['peer_wait_timeout']:
+                    return 'peer'
+                replan_due = (conflict['last_replan'] is None
+                              or now - conflict['last_replan'] >= CONFLICT_REPLAN_PERIOD)
+                if replan_due and (not right_of_way or waited >= self.p['peer_wait_timeout']):
+                    conflict['last_replan'] = now
+                    return 'replan'
+                time.sleep(CONTROL_PERIOD)
+                continue
+            conflict['since'] = None
 
             v, omega = self.controller.compute(self.pose, target)
+            if v > 0.0 and self.obstacle_ahead():
+                v, omega = 0.0, 0.0
+
             if not self.publish_velocity(goal_handle, v, omega):
                 return 'preempted'
-            feedback.distance_left = remaining_length(path, index, (self.pose.x, self.pose.y))
+            remaining = remaining_length(path, index, (self.pose.x, self.pose.y))
+            if monitor.update(self.now(), remaining):
+                self.publish_velocity(goal_handle, 0.0, 0.0)
+                return 'stuck'
+            feedback.distance_left = remaining
             goal_handle.publish_feedback(feedback)
             time.sleep(CONTROL_PERIOD)
         return 'aborted'
 
+    def recover(self, goal_handle) -> str:
+        """Reverse up to reverse_distance while the rear is clear (section 6.5). Return done."""
+        start = (self.pose.x, self.pose.y)
+        deadline = self.now() + 2.0 * self.p['reverse_distance'] / self.p['reverse_speed']
+        while rclpy.ok():
+            ended = self.check_goal(goal_handle)
+            if ended:
+                return ended
+            if distance(start, (self.pose.x, self.pose.y)) >= self.p['reverse_distance']:
+                break
+            if not self.rear_clear() or self.now() > deadline:
+                break
+            if not self.publish_velocity(goal_handle, -self.p['reverse_speed'], 0.0):
+                return 'preempted'
+            time.sleep(CONTROL_PERIOD)
+        self.publish_velocity(goal_handle, 0.0, 0.0)
+        return 'done'
+
     def navigate(self, goal_handle, target) -> str:
         """
-        Plan a path to `target` and follow it. Return reached, no path, preempted or cancelled.
+        Plan and follow; when stuck, reverse and plan again, up to max_replans times.
 
-        A path of one point means the robot already stands in the goal cell. NAV-06 adds
-        the safety stop and recovery here.
+        A conflict with the other robot asks for a new plan ('replan'); those plans do not
+        count as recoveries, and the conflict timer in `conflict` lives on across them.
+        Return reached, no path, stuck, peer, preempted or cancelled. A path of one point
+        means the robot already stands in the goal cell.
         """
-        path = self.plan_path(goal_handle, target)
-        if path is None:
-            return 'no path'
-        if len(path) == 1:
-            return 'reached'
-        return self.follow_path(goal_handle, path)
+        replans = 0
+        conflict = {'since': None, 'last_replan': None}    # survives replans of this goal
+        while True:
+            path = self.plan_path(goal_handle, target)
+            if path is None:
+                return 'no path'
+            if len(path) == 1:
+                return 'reached'
+            result = self.follow_path(goal_handle, path, conflict)
+            if result == 'replan':
+                self.get_logger().info('replanning around the other robot')
+                continue
+            if result != 'stuck':
+                return result
+            replans += 1
+            if replans > self.p['max_replans']:
+                return 'stuck'
+            self.get_logger().warn(f'stuck, recovery {replans} of {self.p["max_replans"]}')
+            result = self.recover(goal_handle)
+            if result != 'done':
+                return result
 
     def spin(self, goal_handle) -> str:
         """
@@ -350,6 +468,37 @@ class RobotHandler(Node):
         return 'reached'
 
     # ---------- helpers ----------
+
+    def obstacle_ahead(self) -> bool:
+        """Return True if a point of the latest scan lies in the stop zone ahead of the robot."""
+        return points_ahead(self.obstacle_points, self.pose,
+                            self.p['obstacle_stop_distance'], self.p['obstacle_half_width'])
+
+    def rear_clear(self) -> bool:
+        """Return True if nothing is close behind: no lidar reading and not the other robot."""
+        scan = self.scan
+        if scan is None:
+            return False
+        rear = sector_min(scan.ranges, scan.angle_min, scan.angle_increment,
+                          scan.range_min, scan.range_max,
+                          math.pi - REAR_HALF_ANGLE, math.pi + REAR_HALF_ANGLE)
+        if rear <= self.p['obstacle_stop_distance']:
+            return False
+        if self.peer_position is not None:
+            dx = self.peer_position[0] - self.pose.x
+            dy = self.peer_position[1] - self.pose.y
+            ahead = dx * math.cos(self.pose.theta) + dy * math.sin(self.pose.theta)
+            if ahead < 0.0 and math.hypot(dx, dy) < PEER_BEHIND_RADIUS:
+                return False
+        return True
+
+    def peer_blocks(self, path, index) -> bool:
+        """Return True if the remaining path runs into the other robot (section 6.6, rule 2)."""
+        if self.peer_position is None:
+            return False
+        return peer_conflict(path[index:], (self.pose.x, self.pose.y), self.peer_position,
+                             self.peer_velocity, self.p['path_lookahead'],
+                             self.p['peer_stop_clearance'])
 
     def check_goal(self, goal_handle) -> Optional[str]:
         """Return preempted or cancelled if the goal must end now, otherwise None."""
