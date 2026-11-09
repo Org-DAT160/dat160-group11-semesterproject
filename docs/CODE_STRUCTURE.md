@@ -305,6 +305,7 @@ The leader calls it twice: offset `(0, 0)` for pass 0 and
 | Name | Signature | Purpose |
 |---|---|---|
 | `meeting_points` | `(grid: GridMap, marker: Point, fields: Dict[str, np.ndarray], radius_a: float, radius_b: float, separation: float, exclude: Sequence[Point] = (), exclude_radius: float = 0.3) -> Optional[Dict[str, Point]]` | Point A for the robot with the shorter travel distance (reachable free cell within `radius_a` of the marker position with the shortest travel distance), point B for the other robot (within `radius_b`, at least `separation` from A, shortest travel distance). Cells within `exclude_radius` of an excluded point are skipped. `None` if no pair exists |
+| `candidates` | `(grid: GridMap, marker: Point, field: np.ndarray, radius: float, exclude: Sequence[Point], exclude_radius: float) -> List[Tuple[float, Point]]` | (travel distance, cell centre) of every reachable cell within `radius` of the marker and more than `exclude_radius` from every excluded point, cheapest first |
 
 ### `core/mission.py` (C)
 
