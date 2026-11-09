@@ -22,8 +22,11 @@ conditions are logged every 5 s on a steady-clock timer, which also runs when
 Single-threaded (section 10): every call is asynchronous (`send_goal_async`,
 `cancel_goal_async`) with a done callback, and nothing waits inside a callback.
 
+Big-fire meeting (section 9): `meeting_points(exclude)` gives Mission one point per
+robot near the accepted position of marker 4, from both robots' cost fields on the
+planning grid (core/meeting.py).
+
 Parts that come with later issues; until then the node uses simple stand-ins:
-    MIS-04  meeting points (meeting_points returns None: the meeting stays pending)
     MIS-05  GreedyAllocator, MIS-06 viewpoints (no viewpoints: robots wait after Started)
     MIS-06  path cost from a distance field (straight-line distance until then)
 """
@@ -43,9 +46,11 @@ from rescue_interfaces.action import NavigateTo
 from rescue_interfaces.msg import FoundMarker
 from scoring_interfaces.srv import SetMarkerPosition
 
+from rescue_team.core.distance_transform import cost_field, nearest_free_cell
 from rescue_team.core.geometry import distance, Point
 from rescue_team.core.grid import GridMap
 from rescue_team.core.marker_registry import MarkerRegistry, Report, Sighting
+from rescue_team.core.meeting import meeting_points
 from rescue_team.core.mission import (
     CancelGoal, Command, Finish, GoalFinished, MarkerAccepted, Mission, MissionParams,
     SendGoal, Started, Tick)
@@ -54,6 +59,8 @@ from rescue_team.core.mission import (
 START_HOLD = 2.0        # s the start conditions must hold before Started
 LOG_PERIOD = 5.0        # s between two logs of the unmet start conditions (steady clock)
 RESEND_TIMEOUT = 5.0    # s without an answer from scoring before a report is sent again
+BIG_FIRE_ID = 4         # the marker both robots meet at
+SNAP_RADIUS = 5         # cells; a robot near a wall stands in the inflated area (as NAV-03)
 
 STATUS_NAMES = {
     GoalStatus.STATUS_SUCCEEDED: 'SUCCEEDED',
@@ -100,7 +107,8 @@ class Leader(Node):
             ('tick_rate', 2.0), ('meet_hold_time', 3.0), ('meet_max_attempts', 3),
             ('goal_timeout_base', 20.0), ('max_linear_speed', 0.26),
             ('spin_angle', 5.2), ('spin_speed', 1.5), ('spin_step', 0.87),
-            ('spin_pause', 0.5), ('min_sightings', 3),)}
+            ('spin_pause', 0.5), ('min_sightings', 3), ('inflation_radius', 0.30),
+            ('meet_radius', 1.0), ('meet_radius_second', 1.2), ('meet_separation', 0.8),)}
         self.p = p
         self.robots: List[str] = list(p['robots'])
 
@@ -127,6 +135,7 @@ class Leader(Node):
 
         # ---------- latest data ----------
         self.static_grid: Optional[GridMap] = None
+        self.planning_grid: Optional[GridMap] = None    # walls grown by inflation_radius
         self.positions: Dict[str, Point] = {}       # robot -> (x, y) from odometry
 
         # ---------- start-up ----------
@@ -172,7 +181,7 @@ class Leader(Node):
     # ---------- sensor callbacks ----------
 
     def on_map(self, msg: OccupancyGrid) -> None:
-        """Build the static grid once (section 6.1); planning grid and wall distance in MIS-06."""
+        """Build the static and planning grids once (section 6.1); wall distance in MIS-06."""
         try:
             if self.static_grid is not None:
                 return
@@ -182,6 +191,7 @@ class Leader(Node):
                 (info.origin.position.x, info.origin.position.y))
             factor = max(1, int(round(self.p['grid_resolution'] / info.resolution)))
             self.static_grid = full.downsample(factor)
+            self.planning_grid = self.static_grid.inflate(self.p['inflation_radius'])
             rows, cols = self.static_grid.occupied.shape
             self.get_logger().info(
                 f'map received: {info.width}x{info.height} at {info.resolution} m, '
@@ -303,8 +313,54 @@ class Leader(Node):
         return distance(position, target)
 
     def meeting_points(self, exclude: Sequence[Point]) -> Optional[Dict[str, Point]]:
-        """Return one meeting point per robot near the big fire. Stand-in until MIS-04: None."""
-        return None
+        """
+        Return one meeting point per robot near the big fire, or None (section 9).
+
+        Uses the accepted position of marker 4 and a cost field per robot on the
+        planning grid. Called by Mission when the meeting starts or a point failed.
+        """
+        marker = self.registry.accepted_position(BIG_FIRE_ID)
+        if marker is None or self.planning_grid is None:
+            return None
+        fields = {}
+        for robot in self.robots:
+            field = self.robot_field(robot)
+            if field is None:
+                self.get_logger().warn(f'meeting: no cost field for {robot}')
+                return None
+            fields[robot] = field
+        points = meeting_points(
+            self.planning_grid, marker, fields,
+            radius_a=float(self.p['meet_radius']),
+            radius_b=float(self.p['meet_radius_second']),
+            separation=float(self.p['meet_separation']), exclude=exclude)
+        if points is None:
+            self.get_logger().warn(
+                f'meeting: no pair of points near ({marker[0]:.2f}, {marker[1]:.2f}), '
+                f'{len(exclude)} excluded')
+        else:
+            self.get_logger().info(
+                f'meeting near ({marker[0]:.2f}, {marker[1]:.2f}): '
+                + ', '.join(f'{r} -> ({x:.2f}, {y:.2f})' for r, (x, y) in points.items()))
+        return points
+
+    def robot_field(self, robot: str):
+        """
+        Return the travel distance from the robot to every cell of the planning grid.
+
+        The robot's cell is moved to the nearest free cell first, because a robot close
+        to a wall stands inside the inflated area. None without a position or free
+        cell. Computed on every call; MIS-06 adds caching while the robot stays in
+        its cell.
+        """
+        position = self.positions.get(robot)
+        if position is None:
+            return None
+        grid = self.planning_grid
+        cell = nearest_free_cell(grid.occupied, grid.world_to_cell(*position), SNAP_RADIUS)
+        if cell is None:
+            return None
+        return cost_field(grid.occupied, grid.resolution, [cell])
 
     # ---------- marker reporting (section 7.2) ----------
 
