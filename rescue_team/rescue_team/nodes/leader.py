@@ -51,7 +51,7 @@ from scoring_interfaces.srv import SetMarkerPosition
 from rescue_team.core.allocation import GreedyAllocator
 from rescue_team.core.distance_transform import (
     cost_at, cost_field, nearest_free_cell, wall_distance)
-from rescue_team.core.geometry import Point
+from rescue_team.core.geometry import distance, Point
 from rescue_team.core.grid import GridMap
 from rescue_team.core.marker_registry import MarkerRegistry, Report, Sighting
 from rescue_team.core.meeting import meeting_points
@@ -89,7 +89,7 @@ class Leader(Node):
             ('spin_pause', 0.5), ('min_sightings', 3), ('inflation_radius', 0.30),
             ('meet_radius', 1.0), ('meet_radius_second', 1.2), ('meet_separation', 0.8),
             ('viewpoint_spacing', 1.5), ('viewpoint_wall_distance', 1.5),
-            ('spin_clearance', 0.40),)}
+            ('spin_clearance', 0.40), ('peer_plan_clearance', 0.60),)}
         self.p = p
         self.robots: List[str] = list(p['robots'])
 
@@ -121,6 +121,7 @@ class Leader(Node):
         self.wall_dist = None            # metres from each cell to the nearest wall
         self.passes = None               # viewpoints of pass 0 and pass 1, computed once
         self.field_cache = {}            # robot -> (cell, cost field), see robot_field
+        self.avoid_peer: Set[str] = set()  # robots whose last goal ended with `peer`
 
         # ---------- start-up ----------
         self.started = False
@@ -313,7 +314,7 @@ class Leader(Node):
 
         Read from the robot's cost field, so detours around walls count (section 8.2).
         """
-        field = self.robot_field(robot)
+        field = self.robot_field(robot, around_peer=robot in self.avoid_peer)
         if field is None:
             return None
         return cost_at(field, self.planning_grid, target)
@@ -350,7 +351,7 @@ class Leader(Node):
                 + ', '.join(f'{r} -> ({x:.2f}, {y:.2f})' for r, (x, y) in points.items()))
         return points
 
-    def robot_field(self, robot: str):
+    def robot_field(self, robot: str, around_peer: bool = False):
         """
         Return the travel distance from the robot to every cell of the planning grid.
 
@@ -366,12 +367,37 @@ class Leader(Node):
         cell = nearest_free_cell(grid.occupied, grid.world_to_cell(*position), SNAP_RADIUS)
         if cell is None:
             return None
+        if around_peer:
+            return cost_field(self.blocked_around_peers(robot), grid.resolution, [cell])
         cached = self.field_cache.get(robot)
         if cached is not None and cached[0] == cell:
             return cached[1]
         field = cost_field(grid.occupied, grid.resolution, [cell])
         self.field_cache[robot] = (cell, field)
         return field
+
+    def blocked_around_peers(self, robot: str):
+        """
+        Return the planning grid's blocked cells plus a disc around every other robot.
+
+        Used for a robot whose last goal ended with `peer` (stuck behind the other robot
+        in a corridor): viewpoints behind the other robot become unreachable, so the
+        allocator gives it one on its own side, and it drives away (section 6.6).
+        """
+        grid = self.planning_grid
+        blocked = grid.occupied.copy()
+        radius = float(self.p['peer_plan_clearance'])
+        reach = int(math.ceil(radius / grid.resolution))
+        for other, position in self.positions.items():
+            if other == robot:
+                continue
+            row0, col0 = grid.world_to_cell(*position)
+            for row in range(row0 - reach, row0 + reach + 1):
+                for col in range(col0 - reach, col0 + reach + 1):
+                    centre = grid.cell_to_world(row, col)
+                    if grid.in_bounds(row, col) and distance(centre, position) <= radius:
+                        blocked[row, col] = True
+        return blocked
 
     # ---------- marker reporting (section 7.2) ----------
 
@@ -480,6 +506,12 @@ class Leader(Node):
             current = self.goal_handles.get(robot)
             if current is not None and current[0] == goal_id:
                 del self.goal_handles[robot]
+            if goal_id == self.sent_goal_id.get(robot):
+                # After `peer` the next goal is chosen around the other robot (path_cost).
+                if result.message == 'peer':
+                    self.avoid_peer.add(robot)
+                elif result.success:
+                    self.avoid_peer.discard(robot)
             self.dispatch(GoalFinished(self.now(), robot, goal_id, bool(result.success)))
         except Exception as e:
             self.get_logger().error(f'on_goal_result({robot}, {goal_id}): {e!r}')

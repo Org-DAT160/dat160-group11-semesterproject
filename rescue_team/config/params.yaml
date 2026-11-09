@@ -27,14 +27,14 @@
     turn_threshold: 0.5            # rad, heading error above this: turn in place first
     max_linear_speed: 0.26         # m/s, TurtleBot3 top speed (leader uses it for goal deadlines)
     distance_gain: 1.0             # 1/s, k_d in v = min(v_max, k_d * distance)
-    max_angular_speed: 1.5         # rad/s, turn rate limit while following a path
+    max_angular_speed: 1.8         # rad/s, turn rate limit while following a path (INT-02: 1.5 -> 1.8)
     heading_gain: 1.5              # 1/s, k_h in omega = k_h * heading_error
 
     # --- Spin at viewpoints (robot_handler, leader) ---
     spin_speed: 1.5                # rad/s, turn rate at viewpoints (SPK-02: turn-and-look, ARCHITECTURE 6.8)
     spin_angle: 5.2                # rad, 2*pi minus the camera's horizontal field of view
     spin_step: 0.87                # rad, largest turn between two looks (50 deg, less than the 62 deg HFOV)
-    spin_pause: 0.5                # s, standstill after every spin step so the camera gets sharp images
+    spin_pause: 1.0                # s, standstill after every spin step so the camera gets sharp images (INT-02: 0.5 -> 1.0)
 
     # --- Lidar safety stop (robot_handler) ---
     obstacle_stop_distance: 0.35   # m, stop if something is this close ahead (also rear check when reversing)
@@ -59,12 +59,12 @@
     marker_max_range: 3.0          # m, sightings farther away are discarded (SPK-02: 3 cm error at 3 m)
 
     # --- Reporting (leader) ---
-    min_sightings: 3               # sightings needed before a marker is reported
+    min_sightings: 1               # sightings needed before a marker is reported (INT-02: 3 -> 1, no penalty for a wrong report)
 
     # --- Exploration (leader) ---
-    viewpoint_spacing: 1.5         # m, distance between viewpoints (SPK-02: detection 1.0-3.5 m)
+    viewpoint_spacing: 2.5         # m, distance between viewpoints (SPK-02: detection 1.0-3.5 m; INT-02: 1.5 -> 2.5)
     viewpoint_wall_distance: 1.5   # m, a viewpoint must be at most this far from a wall
-    spin_clearance: 0.40           # m, a viewpoint must be at least this far from a wall
+    spin_clearance: 0.90           # m, a viewpoint must be at least this far from a wall (INT-02: 0.40 -> 0.90, markers need >= 1.0 m)
 
     # --- Big-fire meeting (leader) ---
     meet_radius: 1.0               # m, max distance of meeting point A from the big fire
