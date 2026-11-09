@@ -1,4 +1,5 @@
-"""Tests for core/allocation.py, with a fake cost function.
+"""
+Tests for core/allocation.py, with a fake cost function.
 
 The cost function looks the travel distance up in a table per robot, so the tests
 choose the costs directly. A viewpoint missing from a robot's table is

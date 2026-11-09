@@ -1,4 +1,5 @@
-"""Tests for GridMap in core/grid.py, on hand-made grids and map files.
+"""
+Tests for GridMap in core/grid.py, on hand-made grids and map files.
 
 Grids are written as text: '#' is occupied, '.' is free. The first line is row 0,
 the first character is column 0 (array indexing, no row flip involved).
@@ -47,7 +48,7 @@ def single(rows, cols, cell):
 
 
 def occ_list(grid):
-    """The occupied array as nested lists, after checking it is bool ([1, 0] == [True, False])."""
+    """Return the occupied array as nested lists, checking it is bool ([1, 0] == [True, False])."""
     assert grid.occupied.dtype == bool
     return grid.occupied.tolist()
 
@@ -506,7 +507,8 @@ def test_full_size_downsample_and_inflate_is_fast():
     assert planning.occupied.shape == (200, 200)
     # The wall in column 100 grows by 3 cells, not 4.
     assert planning.occupied[100, 103] and not planning.occupied[100, 104]
-    assert elapsed < 0.5
+    # Generous limit: the course VM is 2-4x slower than a laptop.
+    assert elapsed < 3.0
 
 
 @pytest.mark.skipif(not os.path.exists(W1_YAML), reason='course map w1 not copied to test/data')
@@ -520,4 +522,5 @@ def test_w1_downsample_and_inflate():
     assert planning.occupied.shape == (200, 200)
     assert planning.resolution == pytest.approx(0.1)
     assert 0 < planning.occupied.sum() < planning.occupied.size
-    assert elapsed < 0.5
+    # Generous limit: the course VM is 2-4x slower than a laptop.
+    assert elapsed < 3.0

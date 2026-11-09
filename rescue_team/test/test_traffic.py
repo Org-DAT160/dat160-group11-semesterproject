@@ -1,4 +1,5 @@
-"""Tests for core/traffic.py, with hand-made positions in the map frame (metres).
+"""
+Tests for core/traffic.py, with hand-made positions in the map frame (metres).
 
 Unless stated otherwise the defaults from params.yaml are used: path_lookahead
 1.0 m, peer_stop_clearance 0.5 m, step 0.1 m, away_speed 0.1 m/s, away_gap 0.7 m.
