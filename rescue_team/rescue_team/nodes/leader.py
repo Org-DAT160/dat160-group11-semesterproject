@@ -26,9 +26,11 @@ Big-fire meeting (section 9): `meeting_points(exclude)` gives Mission one point 
 robot near the accepted position of marker 4, from both robots' cost fields on the
 planning grid (core/meeting.py).
 
-Parts that come with later issues; until then the node uses simple stand-ins:
-    MIS-05  GreedyAllocator, MIS-06 viewpoints (no viewpoints: robots wait after Started)
-    MIS-06  path cost from a distance field (straight-line distance until then)
+Exploration (section 8): before Started the leader computes the viewpoints of pass 0
+and pass 1 (core/viewpoints.py) and hands them to Mission, which loads them into the
+GreedyAllocator (core/allocation.py) pass after pass. The travel cost for the
+allocator and the goal deadlines comes from each robot's cost field, cached while the
+robot stays in the same cell.
 """
 import math
 from typing import Dict, List, Optional, Sequence, Set, Tuple
@@ -46,14 +48,17 @@ from rescue_interfaces.action import NavigateTo
 from rescue_interfaces.msg import FoundMarker
 from scoring_interfaces.srv import SetMarkerPosition
 
-from rescue_team.core.distance_transform import cost_field, nearest_free_cell
-from rescue_team.core.geometry import distance, Point
+from rescue_team.core.allocation import GreedyAllocator
+from rescue_team.core.distance_transform import (
+    cost_at, cost_field, nearest_free_cell, wall_distance)
+from rescue_team.core.geometry import Point
 from rescue_team.core.grid import GridMap
 from rescue_team.core.marker_registry import MarkerRegistry, Report, Sighting
 from rescue_team.core.meeting import meeting_points
 from rescue_team.core.mission import (
     CancelGoal, Command, Finish, GoalFinished, MarkerAccepted, Mission, MissionParams,
     SendGoal, Started, Tick)
+from rescue_team.core.viewpoints import generate_viewpoints
 
 # Fixed values (ARCHITECTURE.md section 11), not parameters.
 START_HOLD = 2.0        # s the start conditions must hold before Started
@@ -69,32 +74,6 @@ STATUS_NAMES = {
 }
 
 
-class NoViewpoints:
-    """
-    Stand-in for GreedyAllocator until MIS-05/MIS-06: there are no viewpoints.
-
-    Same methods as GreedyAllocator (docs/CODE_STRUCTURE.md); it never hands out a
-    viewpoint, so the robots wait after Started.
-    """
-
-    def set_targets(self, targets: Sequence[Point]) -> None:
-        """Accept the pass and ignore it."""
-
-    def next_target(self, robot: str, cost) -> Optional[Point]:
-        """Return None: no viewpoint."""
-        return None
-
-    def complete(self, robot: str, success: bool) -> None:
-        """Do nothing: there is never a reservation."""
-
-    def release(self, robot: str) -> None:
-        """Do nothing: there is never a reservation."""
-
-    def free_count(self) -> int:
-        """Return 0: no free viewpoint."""
-        return 0
-
-
 class Leader(Node):
     """Turn ROS callbacks into mission events and mission commands into ROS calls."""
 
@@ -108,7 +87,9 @@ class Leader(Node):
             ('goal_timeout_base', 20.0), ('max_linear_speed', 0.26),
             ('spin_angle', 5.2), ('spin_speed', 1.5), ('spin_step', 0.87),
             ('spin_pause', 0.5), ('min_sightings', 3), ('inflation_radius', 0.30),
-            ('meet_radius', 1.0), ('meet_radius_second', 1.2), ('meet_separation', 0.8),)}
+            ('meet_radius', 1.0), ('meet_radius_second', 1.2), ('meet_separation', 0.8),
+            ('viewpoint_spacing', 1.5), ('viewpoint_wall_distance', 1.5),
+            ('spin_clearance', 0.40),)}
         self.p = p
         self.robots: List[str] = list(p['robots'])
 
@@ -126,7 +107,7 @@ class Leader(Node):
             + f', spin_time={spin_time:.1f} s (computed)')
 
         # ---------- the mission ----------
-        self.allocator = NoViewpoints()             # GreedyAllocator in MIS-05/MIS-06
+        self.allocator = GreedyAllocator()          # hands out the viewpoints (section 8.2)
         self.mission = Mission(self.allocator, self.path_cost, self.meeting_points, params)
 
         # ---------- marker reporting (section 7.2) ----------
@@ -137,6 +118,9 @@ class Leader(Node):
         self.static_grid: Optional[GridMap] = None
         self.planning_grid: Optional[GridMap] = None    # walls grown by inflation_radius
         self.positions: Dict[str, Point] = {}       # robot -> (x, y) from odometry
+        self.wall_dist = None            # metres from each cell to the nearest wall
+        self.passes = None               # viewpoints of pass 0 and pass 1, computed once
+        self.field_cache = {}            # robot -> (cell, cost field), see robot_field
 
         # ---------- start-up ----------
         self.started = False
@@ -181,7 +165,7 @@ class Leader(Node):
     # ---------- sensor callbacks ----------
 
     def on_map(self, msg: OccupancyGrid) -> None:
-        """Build the static and planning grids once (section 6.1); wall distance in MIS-06."""
+        """Build the static and planning grids and the wall distance once (section 6.1)."""
         try:
             if self.static_grid is not None:
                 return
@@ -192,6 +176,7 @@ class Leader(Node):
             factor = max(1, int(round(self.p['grid_resolution'] / info.resolution)))
             self.static_grid = full.downsample(factor)
             self.planning_grid = self.static_grid.inflate(self.p['inflation_radius'])
+            self.wall_dist = wall_distance(self.static_grid.occupied, self.static_grid.resolution)
             rows, cols = self.static_grid.occupied.shape
             self.get_logger().info(
                 f'map received: {info.width}x{info.height} at {info.resolution} m, '
@@ -234,7 +219,11 @@ class Leader(Node):
             if self.started:
                 self.dispatch(Tick(now))
                 return
-
+            if (self.passes is None and self.planning_grid is not None
+                    and all(robot in self.positions for robot in self.robots)):
+                self.passes = self.compute_viewpoints()
+                self.get_logger().info(
+                    'viewpoints computed: ' + ', '.join(str(len(vp)) for vp in self.passes))
             if self.unmet_conditions(now):
                 self.ready_since = None
                 return
@@ -276,6 +265,8 @@ class Leader(Node):
         for robot in self.robots:
             if robot not in self.positions:
                 unmet.append(f'no odometry from {robot}')
+        if self.passes is None:
+            unmet.append('viewpoints not computed')
         if not self.report_client.service_is_ready():
             unmet.append('/set_marker_position not available (is scoring running?)')
         for robot in self.robots:
@@ -286,7 +277,7 @@ class Leader(Node):
     def send_started(self, now: float) -> None:
         """Send Started with the robots' start positions and the viewpoint passes."""
         robots = {robot: self.positions[robot] for robot in self.robots}
-        passes = self.compute_viewpoints()
+        passes = self.passes
         self.started = True
         self.start_time = now
         self.get_logger().info(
@@ -295,22 +286,37 @@ class Leader(Node):
         self.dispatch(Started(now, robots, passes))
 
     def compute_viewpoints(self) -> List[List[Point]]:
-        """Return the viewpoints of pass 0 and pass 1. Stand-in until MIS-06: none."""
-        return [[], []]
+        """
+        Return the viewpoints of pass 0 and pass 1 (section 8.1).
+
+        The start field has both robots' snapped cells as sources, so only viewpoints
+        that a robot can reach are kept. Pass 1 is shifted by half the spacing.
+        """
+        grid = self.planning_grid
+        cells = [nearest_free_cell(grid.occupied, grid.world_to_cell(*self.positions[robot]),
+                                   SNAP_RADIUS) for robot in self.robots]
+        start_field = cost_field(grid.occupied, grid.resolution,
+                                 [cell for cell in cells if cell is not None])
+        spacing = float(self.p['viewpoint_spacing'])
+        passes = []
+        for offset in ((0.0, 0.0), (spacing / 2, spacing / 2)):
+            passes.append(generate_viewpoints(
+                grid, self.wall_dist, start_field, spacing, offset,
+                float(self.p['spin_clearance']), float(self.p['viewpoint_wall_distance'])))
+        return passes
 
     # ---------- functions injected into Mission ----------
 
     def path_cost(self, robot: str, target: Point) -> Optional[float]:
         """
-        Return the travel distance from the robot to `target` (CostFn).
+        Return the travel distance from the robot to `target` (CostFn); None if unreachable.
 
-        Stand-in until MIS-06: the straight-line distance from the robot's latest
-        position, which underestimates detours. None without a position.
+        Read from the robot's cost field, so detours around walls count (section 8.2).
         """
-        position = self.positions.get(robot)
-        if position is None:
+        field = self.robot_field(robot)
+        if field is None:
             return None
-        return distance(position, target)
+        return cost_at(field, self.planning_grid, target)
 
     def meeting_points(self, exclude: Sequence[Point]) -> Optional[Dict[str, Point]]:
         """
@@ -350,8 +356,8 @@ class Leader(Node):
 
         The robot's cell is moved to the nearest free cell first, because a robot close
         to a wall stands inside the inflated area. None without a position or free
-        cell. Computed on every call; MIS-06 adds caching while the robot stays in
-        its cell.
+        cell. The field is cached while the robot stays in the same cell, because the
+        allocator asks for the cost of every viewpoint.
         """
         position = self.positions.get(robot)
         if position is None:
@@ -360,7 +366,12 @@ class Leader(Node):
         cell = nearest_free_cell(grid.occupied, grid.world_to_cell(*position), SNAP_RADIUS)
         if cell is None:
             return None
-        return cost_field(grid.occupied, grid.resolution, [cell])
+        cached = self.field_cache.get(robot)
+        if cached is not None and cached[0] == cell:
+            return cached[1]
+        field = cost_field(grid.occupied, grid.resolution, [cell])
+        self.field_cache[robot] = (cell, field)
+        return field
 
     # ---------- marker reporting (section 7.2) ----------
 
