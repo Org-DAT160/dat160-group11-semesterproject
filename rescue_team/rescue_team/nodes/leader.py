@@ -55,7 +55,7 @@ from rescue_team.core.meeting import meeting_points
 from rescue_team.core.mission import (
     CancelGoal, Command, Finish, GoalFinished, MarkerAccepted, Mission, MissionParams,
     SendGoal, Started, Tick)
-from rescue_team.core.viewpoints import generate_viewpoints
+from rescue_team.core.viewpoints import generate_coverage_viewpoints, generate_viewpoints
 from scoring_interfaces.srv import SetMarkerPosition
 
 # Fixed values (ARCHITECTURE.md section 11), not parameters.
@@ -87,7 +87,10 @@ class Leader(Node):
             ('spin_pause', 0.5), ('min_sightings', 3), ('inflation_radius', 0.30),
             ('meet_radius', 1.0), ('meet_radius_second', 1.2), ('meet_separation', 0.8),
             ('viewpoint_spacing', 1.5), ('viewpoint_wall_distance', 1.5),
-            ('spin_clearance', 0.40), ('peer_plan_clearance', 0.60),)}
+            ('spin_clearance', 0.40), ('peer_plan_clearance', 0.60),
+            ('coverage_viewpoints', True), ('coverage_clearance', 0.50),
+            ('coverage_step', 0.10), ('coverage_min_range', 1.3),
+            ('coverage_max_range', 3.0), ('coverage_max_angle', 55.0),)}
         self.p = p
         self.robots: List[str] = list(p['robots'])
 
@@ -302,6 +305,14 @@ class Leader(Node):
             passes.append(generate_viewpoints(
                 grid, self.wall_dist, start_field, spacing, offset,
                 float(self.p['spin_clearance']), float(self.p['viewpoint_wall_distance'])))
+        if self.p['coverage_viewpoints']:
+            # Pass 0 sees every reachable wall face from the front; pass 1 stays the
+            # lattice, so a second round looks from other places (INT-02 play).
+            passes[0] = generate_coverage_viewpoints(
+                self.static_grid, grid, self.wall_dist, start_field,
+                float(self.p['coverage_clearance']), float(self.p['coverage_step']),
+                float(self.p['coverage_min_range']), float(self.p['coverage_max_range']),
+                float(self.p['coverage_max_angle']))
         return passes
 
     # ---------- functions injected into Mission ----------

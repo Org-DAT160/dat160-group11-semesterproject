@@ -65,6 +65,13 @@
     viewpoint_spacing: 2.5         # m, distance between viewpoints (SPK-02: detection 1.0-3.5 m; INT-02: 1.5 -> 2.5)
     viewpoint_wall_distance: 1.5   # m, a viewpoint must be at most this far from a wall
     spin_clearance: 0.90           # m, a viewpoint must be at least this far from a wall (INT-02: 0.40 -> 0.90, markers need >= 1.0 m)
+    # Wall-coverage viewpoints for pass 0 (core/viewpoints.py, generate_coverage_viewpoints)
+    coverage_viewpoints: true      # false: pass 0 is the lattice as before
+    coverage_clearance: 0.50       # m, min wall distance of a coverage viewpoint (room to spin)
+    coverage_step: 0.10            # m, candidate lattice (one cell: 0.3 skipped the only row in front of w3 marker 1)
+    coverage_min_range: 1.3        # m, a wall face closer than this is not counted as seen (play: w3 marker 1 not seen from 1.03 m)
+    coverage_max_range: 3.0        # m, ... farther than this (= marker_max_range)
+    coverage_max_angle: 55.0       # deg, max angle between the face normal and the view line
 
     # --- Big-fire meeting (leader) ---
     meet_radius: 1.0               # m, max distance of meeting point A from the big fire
