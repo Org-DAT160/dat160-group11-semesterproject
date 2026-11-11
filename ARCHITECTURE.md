@@ -680,6 +680,14 @@ coverage-based choice, the smallest set of viewpoints that together see every
 wall, would need fewer viewpoints. It needs a visibility model and is left out
 to keep the solution simple.
 
+**Update (2026-11-09, after INT-02):** the lattice missed markers in corridors
+narrower than 2 · `spin_clearance`. Pass 0 is now coverage-based
+(`generate_coverage_viewpoints`, `coverage_*` parameters): every free cell next to a
+wall is a wall face, a candidate sees a face from 1.3–3.0 m within 55° of its normal
+with free line of sight, and greedy set cover picks the candidates. Pass 1 stays the
+lattice. Results in `docs/test_runs.md` (5/5 on all five worlds). Switch it off with
+`coverage_viewpoints: false`.
+
 ---
 
 ## 9. Big-fire meeting
@@ -821,7 +829,8 @@ rescue_team/
 
 All tunable values live in `rescue_team/config/params.yaml`, in one
 `/**: ros__parameters:` block that every node reads; each node declares the
-parameters it uses. Initial values, to be tuned in test runs:
+parameters it uses. The values below are the current ones after the INT-02 tuning
+and the coverage viewpoints (`docs/test_runs.md`); `params.yaml` is the source of truth.
 
 | Parameter | Node | Default | Meaning |
 |---|---|---|---|
@@ -833,12 +842,12 @@ parameters it uses. Initial values, to be tuned in test runs:
 | `turn_threshold` | robot_handler | 0.5 rad | Heading error above which the robot turns in place |
 | `max_linear_speed` | robot_handler, leader | 0.26 m/s | Forward speed limit (TurtleBot3 top speed); also used in goal deadlines |
 | `distance_gain` | robot_handler | 1.0 1/s | `k_d` in `v = min(v_max, k_d · d)` |
-| `max_angular_speed` | robot_handler | 1.5 rad/s | Turn rate limit while following a path |
+| `max_angular_speed` | robot_handler | 1.8 rad/s (INT-02: 1.5 → 1.8) | Turn rate limit while following a path |
 | `heading_gain` | robot_handler | 1.5 1/s | `k_h` in `ω = k_h · e` |
 | `spin_speed` | robot_handler, leader | 1.5 rad/s (SPK-02: turn rate between look steps, §6.8) | Rotation rate at viewpoints; the highest rate with reliable detection |
 | `spin_angle` | robot_handler, leader | 5.2 rad | Rotation at viewpoints (2π − HFOV) |
 | `spin_step` | robot_handler, leader | 0.87 rad (50°, SPK-02) | Largest turn between two looks; less than the 62° HFOV so the views overlap |
-| `spin_pause` | robot_handler, leader | 0.5 s (SPK-02) | Standstill after every spin step, so the camera gets sharp images |
+| `spin_pause` | robot_handler, leader | 1.0 s (SPK-02: 0.5; INT-02: 1.0) | Standstill after every spin step, so the camera gets sharp images |
 | `obstacle_stop_distance` | robot_handler | 0.35 m | Lidar safety stop distance ahead of `base_footprint`; also the rear clearance when reversing |
 | `obstacle_half_width` | robot_handler | 0.20 m | Half width of the safety stop zone |
 | `lidar_offset_x` | robot_handler | −0.064 m (verified in SPK-01) | Lidar ray origin along the robot's x axis, relative to `base_footprint` |
@@ -853,10 +862,15 @@ parameters it uses. Initial values, to be tuned in test runs:
 | `stuck_min_progress` | robot_handler | 0.05 m | Drop in remaining path length that counts as progress |
 | `max_replans` | robot_handler | 5 | Recoveries before a goal ends with `stuck` |
 | `marker_max_range` | marker_detector | 3.0 m (SPK-02: error 3 cm at 3 m) | Sightings farther from the camera are discarded |
-| `min_sightings` | leader | 3 | Sightings required before a report |
-| `viewpoint_spacing` | leader | 1.5 m (confirmed in SPK-02: detection range 1.0–3.5 m) | Lattice spacing of the viewpoints (§8.3) |
+| `min_sightings` | leader | 1 (INT-02: 3 → 1, a wrong report costs nothing) | Sightings required before a report |
+| `viewpoint_spacing` | leader | 2.5 m (INT-02: 1.5 → 2.5) | Lattice spacing of the viewpoints (§8.3) |
 | `viewpoint_wall_distance` | leader | 1.5 m | Maximum distance from a viewpoint to the nearest wall |
-| `spin_clearance` | leader | 0.40 m | Minimum distance from a viewpoint to the nearest wall |
+| `spin_clearance` | leader | 0.90 m (INT-02: 0.40 → 0.90) | Minimum distance from a lattice viewpoint to the nearest wall |
+| `coverage_viewpoints` | leader | true | Pass 0 from `generate_coverage_viewpoints` (§8.4) instead of the lattice |
+| `coverage_clearance` | leader | 0.50 m | Minimum distance from a coverage viewpoint to the nearest wall |
+| `coverage_step` | leader | 0.10 m | Candidate lattice for coverage viewpoints (every cell) |
+| `coverage_min_range`, `coverage_max_range` | leader | 1.3 m, 3.0 m | Distance range in which a wall face counts as seen |
+| `coverage_max_angle` | leader | 55° | Maximum angle between the face normal and the view line |
 | `meet_radius` | leader | 1.0 m | Maximum distance of meeting point A from the reported position |
 | `meet_radius_second` | leader | 1.2 m | Maximum distance of meeting point B from the reported position |
 | `meet_separation` | leader | 0.8 m | Minimum distance between the two meeting points |

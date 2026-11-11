@@ -6,6 +6,70 @@ what scoring prints at start-up.
 
 ---
 
+## 2026-11-10 · INT-03 · start order, the organisers' world launch, GUI on
+
+**Setup:** the course launch file `ros2 launch multi_robot_challenge_23 rescue_robots_wN.launch.py`
+(world, map server, robots, ArUco, **Gazebo window and RViz always on**), our
+`ros2 launch rescue_team rescue.launch.py start_world:=false`, and `ros2 run scoring scoring`,
+exactly as in the README, in separate process groups. Values as in "Coverage viewpoints" below.
+Two runs at a time. "World first": world, scoring after 25 s, our nodes after another 35 s.
+"Ours first": our nodes, world after 40 s, scoring after another 25 s. Without UDP, the course
+processes use Fast-DDS shared memory (default); only our nodes use UDP.
+
+| Run | World | Order | UDP for all | Markers | Meeting | Finished | Score | Min RTF |
+|---|---|---|---|---|---|---|---|---|
+| A | w1 | world first | no | 4/5 (marker 1 not seen) | yes | – | 700 | 0.90 |
+| B | w3 | ours first | no | 5/5 | yes | 267 s | **1126** | 0.95 |
+| A2 | w1 | world first | yes (exported in every terminal) | 5/5 | yes | 558 s | 829 | 0.95 |
+| A3 | w1 | world first | no | 5/5 | yes | 443 s | 946 | 0.92 |
+
+- **Both start orders work.** With our nodes first, the leader waited (`waiting for start-up:
+  simulation clock not running ...; /map not received; ...` every 5 s, and an error that
+  `aruco_markers` has no publisher) until the world and scoring were up, then `Started` within
+  2 s. No goal is sent before `Started`, so no robot moves before it.
+- **GUI on** (Gazebo window and RViz from the course launch): same behaviour as without; the
+  real-time factor dropped to 0.90–0.95 with two such runs at once.
+- **Shared memory or UDP** for the course processes makes no visible difference: A3 without UDP
+  found all five, A2 with UDP was slower (one `peer` result). Run A's missing marker was chance:
+  A2 and A3 on the same world and order found it.
+- w1 is the slowest world (443–558 s here, 459 s in c3_w1): marker 0 is usually found last.
+- No collision, no `stuck`, no errors.
+
+---
+
+## 2026-11-09 · Coverage viewpoints (after INT-02) · all five worlds
+
+**Setup:** as in the INT-02 section below, with the INT-02 values plus pass 0 from
+`generate_coverage_viewpoints` (`coverage_*` in `params.yaml`: candidates every 0.1 m,
+0.5 m from walls, a wall face counts as seen from 1.3–3.0 m and at most 55° off its normal,
+`MIN_GAIN` 8). Pass 1 is the lattice as before.
+
+**Why:** an offline check (for every marker: is there a viewpoint 1–3 m away, at most 60°
+off the plate normal, with free line of sight?) found **no viewpoint in front of w2 marker 1
+or w3 marker 1** in either lattice pass: exactly the markers that were never found in INT-02.
+Both hang in corridors about 1.8–2 m wide, and `spin_clearance` 0.9 m leaves no cell there.
+
+| Run | World | Viewpoints | Markers | Meeting | Finished | Score | INT-02 final |
+|---|---|---|---|---|---|---|---|
+| c3_w1 | w1 | 32, 25 | 5/5 | yes | 459 s | 937 | 700 (4/5) |
+| c3_w2 | w2 | 27, 24 | 5/5 | yes | 327 s | 1070 | 700 (4/5) |
+| c3_w3 | w3 | 20, 21 | 5/5 | yes | 214 s | **1185** | 700 (4/5) |
+| c3_w4 | w4 | 22, 20 | 5/5 | yes | 279 s | 1125 | 1172 |
+| c3_w5 | w5 | 26, 28 | 5/5 | yes | 361 s | 1037 | 935 |
+
+- **All five markers and the meeting on every world; average 1071** (INT-02 final: about 840).
+- No collision (min robot gap 0.65 m), no `stuck`, no `peer`, no errors.
+- One run per world, two at a time.
+
+Earlier tries (same day):
+- `coverage_min_range` 1.0: w3 marker 1 was not seen from 1.03 m at 24°, because closer
+  than about 1 m the top edge of the plate leaves the image (SPK-02). Changed to 1.3.
+- `coverage_step` 0.3: no candidate in front of w3 marker 1. The only cells 1.3 m from
+  the marker and 0.5 m from the other wall form a single row. Changed to 0.1 (every cell).
+- A two-stage cover (head-on first) doubled the viewpoints and did not help. Removed.
+
+---
+
 ## 2026-11-09 · INT-01 / INT-02 · full runs on all five worlds and tuning
 
 **Setup:** `ros2 launch rescue_team rescue.launch.py variant:=wN leader:=true scoring:=true`

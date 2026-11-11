@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 try:
-    from rescue_team.core.viewpoints import generate_viewpoints
+    from rescue_team.core.viewpoints import generate_coverage_viewpoints, generate_viewpoints
 except ModuleNotFoundError as error:
     # Skip only while core/viewpoints.py does not exist; any other import error must fail.
     if error.name != 'rescue_team.core.viewpoints':
@@ -231,3 +231,52 @@ def test_course_maps_give_valid_viewpoints(world, offset):
         assert not planning.occupied[row, col]
         assert SPIN <= wall[row, col] <= NEAR
         assert math.isfinite(start_field[row, col])
+
+
+# ---------- generate_coverage_viewpoints (INT-02 play) ----------
+
+def corridor_grids(width_cells):
+    """Return (static grid, planning grid) of a 6 m long corridor, 0.1 m cells, walls around it."""
+    rows, cols = width_cells + 2, 62
+    occupied = np.zeros((rows, cols), dtype=bool)
+    occupied[0, :] = occupied[-1, :] = True
+    occupied[:, 0] = occupied[:, -1] = True
+    static = GridMap(occupied, 0.1, (0.0, 0.0))
+    return static, static.inflate(0.3)
+
+
+def coverage(width_cells, clearance):
+    """Run generate_coverage_viewpoints on corridor_grids with the INT-02 play values."""
+    static, planning = corridor_grids(width_cells)
+    wall = wall_distance(static.occupied, static.resolution)
+    start = cost_field(planning.occupied, 0.1, [(static.occupied.shape[0] // 2, 30)])
+    return static, generate_coverage_viewpoints(static, planning, wall, start, clearance,
+                                                0.3, 1.0, 3.0, 55.0)
+
+
+def test_coverage_viewpoints_in_a_narrow_corridor():
+    """A 1.6 m corridor gets viewpoints although no cell is 0.9 m from both walls."""
+    static, viewpoints = coverage(16, 0.5)
+    assert viewpoints
+    for x, y in viewpoints:
+        row, col = static.world_to_cell(x, y)
+        assert not static.inflate(0.3).occupied[row, col]
+
+
+def test_coverage_viewpoints_too_narrow_for_the_clearance():
+    """With a clearance wider than half the corridor there is no usable cell."""
+    _, viewpoints = coverage(16, 0.9)
+    assert viewpoints == []
+
+
+def test_coverage_viewpoints_cover_both_long_walls():
+    """Every 10 cm of the two long walls away from the ends is seen by some viewpoint."""
+    static, viewpoints = coverage(16, 0.5)
+    for wall_y in (0.15, 1.65):          # face cells next to the bottom and top wall
+        for x in np.arange(1.05, 5.0, 0.1):
+            seen = False
+            for vx, vy in viewpoints:
+                dist = math.hypot(vx - x, vy - wall_y)
+                angle = math.degrees(math.atan2(abs(vx - x), abs(vy - wall_y)))
+                seen = seen or (1.0 - 1e-6 <= dist <= 3.0 and angle <= 55.0)
+            assert seen, (x, wall_y)
