@@ -55,12 +55,8 @@ from rescue_team.core.meeting import meeting_points
 from rescue_team.core.mission import (
     CancelGoal, Command, Finish, GoalFinished, MarkerAccepted, Mission, MissionParams,
     SendGoal, Started, Tick)
-<<<<<<< Updated upstream
-from rescue_team.core.viewpoints import generate_viewpoints
-from scoring_interfaces.srv import SetMarkerPosition
-=======
 from rescue_team.core.viewpoints import generate_coverage_viewpoints, generate_viewpoints
->>>>>>> Stashed changes
+from scoring_interfaces.srv import SetMarkerPosition
 
 # Fixed values (ARCHITECTURE.md section 11), not parameters.
 START_HOLD = 2.0        # s the start conditions must hold before Started
