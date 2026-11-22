@@ -151,7 +151,8 @@ class RobotHandler(Node):
         """
         Build the static, planning and known-wall grids (section 6.1).
 
-        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
         """
         try:
             if self.planning_grid is not None:
