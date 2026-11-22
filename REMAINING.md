@@ -13,9 +13,11 @@ The content of the report is finished (22.11). Done since the new course templat
 - Appendix C ends with three short code listings at the integration points, with course-template lines labelled (checked against GitHub, commit 0987b25).
 - Page flow fixed: Table C2 stays on the portrait page, table rows and code listings do not split across pages.
 
-## Code (Jonas, on the VM)
+## Code
 
-- [ ] Add a short comment in each function or block where AI was used (the template requires it), e.g. `# AI-assisted (Claude): first draft generated, reviewed and adapted by Jonas.`
+- [x] Jonas: "AI use:" notes in the docstrings of his code, matching his rows in Table D1 (commit 4723ecf).
+- [ ] Jonas: pull on the VM and run `colcon test` once.
+- [ ] Torgeir: add "AI use:" notes to his own code, matching his rows in Table D1.
 
 ## Torgeir
 
