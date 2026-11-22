@@ -4,6 +4,8 @@ Tests for GridMap in core/grid.py, on hand-made grids and map files.
 Grids are written as text: '#' is occupied, '.' is free. The first line is row 0,
 the first character is column 0 (array indexing, no row flip involved).
 """
+# AI-use declaration (report Appendix D): the tests in this module were written by Claude
+# (claude.ai), and reviewed and run by Torgeir (NAV-02).
 import array
 import os
 import subprocess
@@ -25,12 +27,14 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 W1_YAML = os.path.join(DATA_DIR, 'map_dat160_w1.yaml')
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def parse(text):
     """Turn a text grid into a bool array."""
     rows = [line.strip() for line in text.strip().splitlines()]
     return np.array([[ch == '#' for ch in row] for row in rows], dtype=bool)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def make_grid(text, resolution=0.1, origin=(0.0, 0.0)):
     """Build a GridMap from a text grid through from_occupancy_grid (row-major, row 0 first)."""
     occupied = parse(text)
@@ -39,6 +43,7 @@ def make_grid(text, resolution=0.1, origin=(0.0, 0.0)):
     return GridMap.from_occupancy_grid(data, width, height, resolution, origin)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def single(rows, cols, cell):
     """Text grid with one occupied cell."""
     lines = []
@@ -47,12 +52,14 @@ def single(rows, cols, cell):
     return '\n'.join(lines)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def occ_list(grid):
     """Return the occupied array as nested lists, checking it is bool ([1, 0] == [True, False])."""
     assert grid.occupied.dtype == bool
     return grid.occupied.tolist()
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def assert_grid(grid, expected_text):
     expected = parse(expected_text)
     # Must stay bool: on an int array, ~occupied gives -1/-2 and every cell looks free.
@@ -64,6 +71,7 @@ def assert_grid(grid, expected_text):
 
 # --- downsample ---------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_one_fine_cell_occupies_the_coarse_cell():
     grid = make_grid("""
         #...
@@ -80,6 +88,7 @@ def test_downsample_one_fine_cell_occupies_the_coarse_cell():
     assert coarse.origin == pytest.approx((0.0, 0.0))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_hits_the_right_coarse_cell():
     grid = make_grid("""
         ...#
@@ -93,6 +102,7 @@ def test_downsample_hits_the_right_coarse_cell():
     """)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_keeps_a_thin_wall():
     # A wall one fine cell thick must survive: any occupied sub-cell, not the average.
     grid = make_grid("""
@@ -109,6 +119,7 @@ def test_downsample_keeps_a_thin_wall():
     """)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_all_free_and_all_occupied():
     free = make_grid('\n'.join(['....'] * 4))
     full = make_grid('\n'.join(['####'] * 4))
@@ -117,6 +128,7 @@ def test_downsample_all_free_and_all_occupied():
     assert full.downsample(2).occupied.shape == (2, 2)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_factor_one_is_a_copy():
     text = """
         #..#
@@ -133,6 +145,7 @@ def test_downsample_factor_one_is_a_copy():
     assert not grid.occupied[2, 2]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_coarse_cell_centre_is_the_block_centre():
     grid = make_grid('\n'.join(['....'] * 4), resolution=0.01)
     coarse = grid.downsample(2)
@@ -140,6 +153,7 @@ def test_downsample_coarse_cell_centre_is_the_block_centre():
     assert coarse.cell_to_world(1, 1) == pytest.approx((0.03, 0.03))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_with_offset_origin():
     grid = make_grid('\n'.join(['....'] * 4), resolution=0.01, origin=(-10.0, -10.0))
     coarse = grid.downsample(2)
@@ -148,6 +162,7 @@ def test_downsample_with_offset_origin():
     assert coarse.world_to_cell(-9.965, -9.985) == (0, 1)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_does_not_change_the_original():
     grid = make_grid("""
         #...
@@ -162,6 +177,7 @@ def test_downsample_does_not_change_the_original():
 
 # --- inflate ------------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_one_cell_gives_a_plus():
     grid = make_grid(single(7, 7, (3, 3)))
     assert_grid(grid.inflate(0.1), """
@@ -175,6 +191,7 @@ def test_inflate_one_cell_gives_a_plus():
     """)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_one_and_a_half_cells_includes_diagonals():
     grid = make_grid(single(7, 7, (3, 3)))
     assert_grid(grid.inflate(0.15), """
@@ -188,6 +205,7 @@ def test_inflate_one_and_a_half_cells_includes_diagonals():
     """)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_is_circular_not_square():
     # A square inflation would give 25 cells here.
     grid = make_grid(single(7, 7, (3, 3)))
@@ -202,6 +220,7 @@ def test_inflate_is_circular_not_square():
     """)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_two_and_a_half_cells():
     grid = make_grid(single(7, 7, (3, 3)))
     assert_grid(grid.inflate(0.25), """
@@ -215,6 +234,7 @@ def test_inflate_two_and_a_half_cells():
     """)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_real_parameters_float_trap():
     # 0.3 / 0.1 == 2.9999999999999996 in Python. Cells exactly 3 cells away must be included.
     grid = make_grid(single(9, 9, (4, 4)))
@@ -226,6 +246,7 @@ def test_inflate_real_parameters_float_trap():
     assert not inflated.occupied[1, 3]  # distance sqrt(10) ~ 3.16 > 3
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_zero_radius_changes_nothing():
     text = """
         #....
@@ -236,6 +257,7 @@ def test_inflate_zero_radius_changes_nothing():
     assert_grid(make_grid(text).inflate(0.0), text)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_at_the_edge_does_not_crash_or_wrap():
     grid = make_grid(single(5, 5, (0, 0)))
     assert_grid(grid.inflate(0.2), """
@@ -247,6 +269,7 @@ def test_inflate_at_the_edge_does_not_crash_or_wrap():
     """)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_corridor_open_then_closed():
     corridor = '\n'.join(['#.....#'] * 5)
     grid = make_grid(corridor)
@@ -254,11 +277,13 @@ def test_inflate_corridor_open_then_closed():
     assert grid.inflate(0.3).occupied.all()
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_merges_nearby_cells():
     grid = make_grid('.#...#.')
     assert_grid(grid.inflate(0.2), '#######')
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_inflate_keeps_metadata_and_original():
     grid = make_grid(single(5, 5, (2, 2)), resolution=0.1, origin=(-1.0, 3.0))
     inflated = grid.inflate(0.1)
@@ -268,6 +293,7 @@ def test_inflate_keeps_metadata_and_original():
     assert int(grid.occupied.sum()) == 1
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_downsample_then_inflate_like_the_nodes_do():
     # 100x100 fine cells at 0.01 m -> 10x10 coarse cells at 0.1 m. Fine cell (57, 53) lies in
     # coarse cell (5, 5), which then grows into a plus with radius 0.1 m.
@@ -284,6 +310,7 @@ def test_downsample_then_inflate_like_the_nodes_do():
 
 # --- from_occupancy_grid ------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_from_occupancy_grid_threshold_and_unknown():
     # One row: free, below threshold, at threshold, sure wall, unknown.
     grid = GridMap.from_occupancy_grid([0, 64, 65, 100, -1], 5, 1, 0.05, (1.0, 2.0))
@@ -293,18 +320,21 @@ def test_from_occupancy_grid_threshold_and_unknown():
     assert grid.origin == pytest.approx((1.0, 2.0))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_from_occupancy_grid_unknown_can_be_free():
     grid = GridMap.from_occupancy_grid([-1, 100], 2, 1, 0.1, (0.0, 0.0),
                                        unknown_is_occupied=False)
     assert occ_list(grid) == [[False, True]]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_from_occupancy_grid_custom_threshold():
     grid = GridMap.from_occupancy_grid([49, 50, 51], 3, 1, 0.1, (0.0, 0.0),
                                        occupied_threshold=50)
     assert occ_list(grid) == [[False, True, True]]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_from_occupancy_grid_accepts_ros_int8_array():
     # nav_msgs/OccupancyGrid.data arrives as array.array('b') in rclpy.
     data = array.array('b', [0, 100, -1, 0, 0, 0])
@@ -312,6 +342,7 @@ def test_from_occupancy_grid_accepts_ros_int8_array():
     assert occ_list(grid) == [[False, True, True], [False, False, False]]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_from_occupancy_grid_is_row_major_with_row_0_at_origin():
     # Width 3, height 2: data[0:3] is row 0 (lowest y), data[3:6] is row 1.
     grid = GridMap.from_occupancy_grid([0, 0, 100, 0, 0, 0], 3, 2, 0.1, (0.0, 0.0))
@@ -325,10 +356,12 @@ def test_from_occupancy_grid_is_row_major_with_row_0_at_origin():
 
 # --- coordinates --------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def free_grid(rows, cols, resolution=0.1, origin=(0.0, 0.0)):
     return GridMap.from_occupancy_grid([0] * (rows * cols), cols, rows, resolution, origin)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_cell_to_world_is_the_cell_centre_x_from_col_y_from_row():
     # Not square, so swapping row and column shows up.
     grid = free_grid(3, 5, resolution=0.1, origin=(-1.0, 2.0))
@@ -337,6 +370,7 @@ def test_cell_to_world_is_the_cell_centre_x_from_col_y_from_row():
     assert grid.cell_to_world(1, 3) == pytest.approx((-0.65, 2.15))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_world_to_cell_returns_row_then_col():
     grid = free_grid(3, 5, resolution=0.1, origin=(-1.0, 2.0))
     assert grid.world_to_cell(-0.65, 2.15) == (1, 3)
@@ -344,6 +378,7 @@ def test_world_to_cell_returns_row_then_col():
     assert grid.world_to_cell(-0.51, 2.29) == (2, 4)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_world_to_cell_returns_ints():
     grid = free_grid(3, 5)
     row, col = grid.world_to_cell(0.35, 0.15)
@@ -351,6 +386,7 @@ def test_world_to_cell_returns_ints():
     assert (row, col) == (1, 3)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_round_trip_cell_world_cell():
     grid = free_grid(20, 30, resolution=0.1, origin=(-10.0, -10.0))
     for row in range(20):
@@ -358,6 +394,7 @@ def test_round_trip_cell_world_cell():
             assert grid.world_to_cell(*grid.cell_to_world(row, col)) == (row, col)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_round_trip_at_map_resolution():
     # The real /map: cells of 0.01 m, origin at (-10, -10), indices up to 1999.
     grid = free_grid(1, 1, resolution=0.01, origin=(-10.0, -10.0))
@@ -365,6 +402,7 @@ def test_round_trip_at_map_resolution():
         assert grid.world_to_cell(*grid.cell_to_world(*cell)) == cell
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_world_to_cell_rounds_down_below_the_origin():
     # int() would truncate -0.5 to 0 and put this point inside the grid.
     grid = free_grid(3, 5)
@@ -373,12 +411,14 @@ def test_world_to_cell_rounds_down_below_the_origin():
     assert grid.world_to_cell(-0.25, -0.15) == (-2, -3)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_world_to_cell_beyond_the_far_edge():
     grid = free_grid(3, 5)
     assert grid.world_to_cell(0.55, 0.05) == (0, 5)
     assert grid.world_to_cell(0.05, 0.35) == (3, 0)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_in_bounds():
     grid = free_grid(3, 5)
     for cell in [(0, 0), (0, 4), (2, 0), (2, 4), (1, 2)]:
@@ -389,6 +429,7 @@ def test_in_bounds():
 
 # --- is_known_wall ------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_is_known_wall_inside_the_grid():
     grid = make_grid("""
         .....
@@ -402,6 +443,7 @@ def test_is_known_wall_inside_the_grid():
     assert not grid.is_known_wall((1.05, 1.05))   # cell (0, 0)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_is_known_wall_outside_the_grid_on_all_sides():
     grid = free_grid(3, 5, resolution=0.1, origin=(1.0, 1.0))
     assert not grid.is_known_wall((1.25, 1.15))
@@ -412,6 +454,7 @@ def test_is_known_wall_outside_the_grid_on_all_sides():
     assert grid.is_known_wall((-5.0, 50.0))   # far away
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_is_known_wall_on_inflated_static_grid():
     # As in robot_handler: the static grid grown by one cell drops lidar hits next to a wall.
     static = make_grid("""
@@ -429,6 +472,7 @@ def test_is_known_wall_on_inflated_static_grid():
 B, W, U = 0, 254, 205   # map_server pixels: black = wall, white = free, grey = unknown
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def write_map(directory, pixels, resolution=0.1, origin=(0.0, 0.0), name='test_map'):
     """Write a map_server map: PNG row 0 is the top of the map."""
     image_module = pytest.importorskip('PIL.Image')
@@ -443,6 +487,7 @@ def write_map(directory, pixels, resolution=0.1, origin=(0.0, 0.0), name='test_m
     return yaml_path
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_from_yaml_flips_rows(tmp_path):
     pytest.importorskip('yaml')
     # The wall is in the TOP image row, so it must end up in the LAST grid row (highest y).
@@ -456,6 +501,7 @@ def test_from_yaml_flips_rows(tmp_path):
     assert not grid.is_known_wall((0.05, 0.05))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_from_yaml_reads_resolution_origin_and_unknown(tmp_path):
     pytest.importorskip('yaml')
     pixels = [[W, U],
@@ -468,6 +514,7 @@ def test_from_yaml_reads_resolution_origin_and_unknown(tmp_path):
     assert occ_list(grid) == [[True, False], [False, True]]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_from_yaml_image_path_is_relative_to_the_yaml_file(tmp_path, monkeypatch):
     pytest.importorskip('yaml')
     yaml_path = write_map(str(tmp_path), [[B, W]])
@@ -478,6 +525,7 @@ def test_from_yaml_image_path_is_relative_to_the_yaml_file(tmp_path, monkeypatch
     assert occ_list(grid) == [[True, False]]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_importing_grid_does_not_import_pillow():
     code = 'import sys; import rescue_team.core.grid; print("PIL" in sys.modules)'
     env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
@@ -488,6 +536,7 @@ def test_importing_grid_does_not_import_pillow():
 
 # --- full-size grids ----------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 def test_full_size_downsample_and_inflate_is_fast():
     # Same size as /map: 2000 x 2000 at 0.01 m, with an outer wall and some inner walls.
     fine = np.zeros((2000, 2000), dtype=np.int8)
@@ -511,6 +560,7 @@ def test_full_size_downsample_and_inflate_is_fast():
     assert elapsed < 3.0
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-02).
 @pytest.mark.skipif(not os.path.exists(W1_YAML), reason='course map w1 not copied to test/data')
 def test_w1_downsample_and_inflate():
     pytest.importorskip('yaml')

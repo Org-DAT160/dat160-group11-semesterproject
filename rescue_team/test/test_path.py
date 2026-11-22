@@ -5,6 +5,8 @@ Grids are written as text: '#' is blocked, '.' is free. The first line is row 0,
 the first character is column 0. Unless stated otherwise the resolution is 1 m and
 the origin is (0, 0), so the centre of cell (r, c) is (c + 0.5, r + 0.5).
 """
+# AI-use declaration (report Appendix D): the tests in this module were written by Claude
+# (claude.ai), and reviewed and run by Torgeir (NAV-03).
 import math
 import os
 
@@ -27,21 +29,25 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 W1_YAML = os.path.join(DATA_DIR, 'map_dat160_w1.yaml')
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def parse(text):
     """Turn a text grid into a bool array."""
     rows = [line.strip() for line in text.strip().splitlines()]
     return np.array([[ch == '#' for ch in row] for row in rows], dtype=bool)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def make_grid(text, resolution=1.0, origin=(0.0, 0.0)):
     return GridMap(parse(text), resolution, origin)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def centre(r, c):
     """Cell centre for resolution 1 and origin (0, 0)."""
     return (c + 0.5, r + 0.5)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def crosses_blocked(grid, blocked, a, b):
     """
     Check independently whether the line runs through blocked cells for more than 0.3 cell.
@@ -69,6 +75,7 @@ def crosses_blocked(grid, blocked, a, b):
 
 # --- cells_to_points ----------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cells_to_points_gives_cell_centres():
     grid = make_grid('...\n...', resolution=0.5, origin=(-1.0, 2.0))
     points = cells_to_points(grid, [(0, 0), (1, 2)])
@@ -78,23 +85,27 @@ def test_cells_to_points_gives_cell_centres():
     assert len(points) == 2
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cells_to_points_keeps_the_order():
     grid = make_grid('....')
     points = cells_to_points(grid, [(0, 3), (0, 1), (0, 2)])
     assert [p[0] for p in points] == pytest.approx([3.5, 1.5, 2.5])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cells_to_points_of_an_empty_path_is_empty():
     assert cells_to_points(make_grid('..'), []) == []
 
 
 # --- line_of_sight ------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_in_open_space():
     grid = make_grid('....\n....\n....')
     assert line_of_sight(grid, grid.occupied, centre(0, 0), centre(2, 3))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_through_a_wall_is_false():
     grid = make_grid("""
         .....
@@ -104,6 +115,7 @@ def test_line_of_sight_through_a_wall_is_false():
     assert not line_of_sight(grid, grid.occupied, centre(1, 0), centre(1, 4))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_passing_beside_a_wall():
     grid = make_grid("""
         .....
@@ -114,6 +126,7 @@ def test_line_of_sight_passing_beside_a_wall():
     assert line_of_sight(grid, grid.occupied, centre(2, 0), centre(2, 4))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_through_part_of_a_cell():
     # From (0.5, 0.5) to (2.5, 1.5): the line enters cell (1, 1) at (1.5, 1.0)
     # and leaves it at (2.0, 1.25), so it crosses the blocked cell.
@@ -127,6 +140,7 @@ def test_line_of_sight_through_part_of_a_cell():
     assert line_of_sight(grid, grid.occupied, (0.5, 0.5), (2.5, 0.9))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_clipping_the_corner_of_a_cell():
     # The line y = x + 0.6 is inside cell (1, 1) for x in [1.0, 1.4], about 0.57 cells.
     # Both end points are free, and so are the cells they lie in.
@@ -138,6 +152,7 @@ def test_line_of_sight_clipping_the_corner_of_a_cell():
     assert not line_of_sight(grid, grid.occupied, (0.2, 0.8), (1.8, 2.4))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_samples_at_least_every_quarter_cell():
     # The line x + y = 2.3 is inside cell (1, 1) for x in [1.0, 1.3]: 0.42 cells long.
     # Samples a quarter cell apart must land in it; samples half a cell apart do not.
@@ -149,6 +164,7 @@ def test_line_of_sight_samples_at_least_every_quarter_cell():
     assert not line_of_sight(grid, grid.occupied, (0.3, 2.0), (2.0, 0.3))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_samples_finely_on_a_fine_grid():
     # Same corner clip, with 0.1 m cells: sampling must follow the resolution.
     grid = make_grid("""
@@ -159,6 +175,7 @@ def test_line_of_sight_samples_finely_on_a_fine_grid():
     assert not line_of_sight(grid, grid.occupied, (0.02, 0.08), (0.18, 0.24))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_uses_the_blocked_array_not_the_grid():
     grid = make_grid('.....\n.....\n.....')
     blocked = parse("""
@@ -170,12 +187,14 @@ def test_line_of_sight_uses_the_blocked_array_not_the_grid():
     assert not line_of_sight(grid, blocked, centre(1, 0), centre(1, 4))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_ending_in_a_blocked_cell_is_false():
     grid = make_grid('..#')
     assert not line_of_sight(grid, grid.occupied, centre(0, 0), centre(0, 2))
     assert not line_of_sight(grid, grid.occupied, centre(0, 2), centre(0, 0))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_checks_both_end_points():
     # (2.05, 0.5) is only 0.05 cells into the blocked cell: only the end point itself
     # lies in it, so the end points must be among the samples.
@@ -184,12 +203,14 @@ def test_line_of_sight_checks_both_end_points():
     assert not line_of_sight(grid, grid.occupied, (2.05, 0.5), centre(0, 0))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_leaving_the_grid_is_false():
     grid = make_grid('...\n...')
     assert not line_of_sight(grid, grid.occupied, centre(0, 0), (3.5, 0.5))
     assert not line_of_sight(grid, grid.occupied, (-0.5, 0.5), centre(0, 2))
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_line_of_sight_from_a_point_to_itself():
     grid = make_grid('.#')
     assert line_of_sight(grid, grid.occupied, centre(0, 0), centre(0, 0))
@@ -198,12 +219,14 @@ def test_line_of_sight_from_a_point_to_itself():
 
 # --- simplify_path ------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_simplify_a_straight_line_keeps_the_ends():
     grid = make_grid('......')
     points = [centre(0, c) for c in range(6)]
     assert simplify_path(grid, grid.occupied, points) == [centre(0, 0), centre(0, 5)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_simplify_a_staircase_in_open_space():
     # The 45 degree zig-zag of an 8-connected path becomes one straight segment.
     grid = make_grid('......\n......\n......')
@@ -212,6 +235,7 @@ def test_simplify_a_staircase_in_open_space():
     assert simplify_path(grid, grid.occupied, points) == [centre(0, 0), centre(2, 5)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_simplify_keeps_the_corner():
     grid = make_grid("""
         .....
@@ -224,6 +248,7 @@ def test_simplify_keeps_the_corner():
         centre(0, 0), centre(0, 4), centre(2, 4)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_simplify_around_a_wall_on_a_descent():
     blocked = parse("""
         ......
@@ -246,6 +271,7 @@ def test_simplify_around_a_wall_on_a_descent():
         assert not crosses_blocked(grid, blocked, a, b)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_simplify_short_paths_are_unchanged():
     grid = make_grid('...')
     assert simplify_path(grid, grid.occupied, []) == []
@@ -254,6 +280,7 @@ def test_simplify_short_paths_are_unchanged():
         centre(0, 0), centre(0, 1)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_simplify_does_not_change_the_input():
     grid = make_grid('....')
     points = [centre(0, c) for c in range(4)]
@@ -262,6 +289,7 @@ def test_simplify_does_not_change_the_input():
     assert points == before
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_simplify_uses_the_blocked_array_not_the_grid():
     grid = make_grid('.....\n.....\n.....')
     blocked = parse("""
@@ -279,11 +307,13 @@ def test_simplify_uses_the_blocked_array_not_the_grid():
     assert simplify_path(grid, blocked, points) == [p0, p2, p4]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @pytest.fixture(scope='module')
 def w1_planning_grid():
     return GridMap.from_yaml(W1_YAML).downsample(10).inflate(0.30)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_simplified_path_on_w1_never_crosses_a_blocked_cell(w1_planning_grid):
     grid = w1_planning_grid
     blocked = grid.occupied
@@ -307,21 +337,25 @@ def test_simplified_path_on_w1_never_crosses_a_blocked_cell(w1_planning_grid):
 POINTS = [(0.0, 0.0), (3.0, 0.0), (3.0, 4.0)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_remaining_length_from_the_start():
     assert remaining_length(POINTS, 0, (0.0, 0.0)) == pytest.approx(7.0)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_remaining_length_on_the_way_to_a_point():
     # 3 m to (3, 0), then 4 m to (3, 4).
     assert remaining_length(POINTS, 1, (0.0, 0.0)) == pytest.approx(7.0)
     assert remaining_length(POINTS, 1, (1.0, 0.0)) == pytest.approx(6.0)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_remaining_length_off_the_path():
     # 5 m in a straight line from (0, 4) to (3, 0), plus the last 4 m.
     assert remaining_length(POINTS, 1, (0.0, 4.0)) == pytest.approx(9.0)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_remaining_length_on_the_last_segment():
     assert remaining_length(POINTS, 2, (3.0, 1.0)) == pytest.approx(3.0)
     assert remaining_length(POINTS, 2, (3.0, 4.0)) == pytest.approx(0.0)
@@ -329,6 +363,7 @@ def test_remaining_length_on_the_last_segment():
 
 # --- ProgressMonitor ----------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_progress_monitor_stuck_after_the_timeout():
     monitor = ProgressMonitor(timeout=8.0, min_progress=0.05)
     monitor.reset(0.0, 10.0)
@@ -337,6 +372,7 @@ def test_progress_monitor_stuck_after_the_timeout():
     assert monitor.update(8.0, 10.0) is True
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_progress_monitor_progress_restarts_the_clock():
     monitor = ProgressMonitor(timeout=8.0, min_progress=0.05)
     monitor.reset(0.0, 10.0)
@@ -345,6 +381,7 @@ def test_progress_monitor_progress_restarts_the_clock():
     assert monitor.update(13.0, 9.9) is True
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_progress_monitor_exactly_min_progress_counts():
     monitor = ProgressMonitor(timeout=8.0, min_progress=0.5)
     monitor.reset(0.0, 10.0)
@@ -353,6 +390,7 @@ def test_progress_monitor_exactly_min_progress_counts():
     assert monitor.update(14.0, 9.5) is True
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_progress_monitor_small_creeps_add_up():
     # Progress is measured from the value at the last progress, not from the last update.
     monitor = ProgressMonitor(timeout=8.0, min_progress=0.05)
@@ -366,6 +404,7 @@ def test_progress_monitor_small_creeps_add_up():
     assert monitor.update(15.0, 9.94) is True
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_progress_monitor_going_back_and_forth_is_stuck():
     # Turning back and forth: remaining goes up and down, but never 0.05 below 10.
     monitor = ProgressMonitor(timeout=8.0, min_progress=0.05)
@@ -375,6 +414,7 @@ def test_progress_monitor_going_back_and_forth_is_stuck():
     assert monitor.update(8.0, 10.1) is True
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_progress_monitor_progress_is_relative_to_the_reset_value():
     # A longer remaining length after a detour is not progress.
     monitor = ProgressMonitor(timeout=8.0, min_progress=0.05)
@@ -384,6 +424,7 @@ def test_progress_monitor_progress_is_relative_to_the_reset_value():
     assert monitor.update(9.0, 9.9) is False
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_progress_monitor_reset_starts_again():
     monitor = ProgressMonitor(timeout=8.0, min_progress=0.05)
     monitor.reset(0.0, 10.0)

@@ -8,6 +8,8 @@ travel cost to every viewpoint and the distance to the nearest wall.
 No ROS imports here (see docs/CODE_STRUCTURE.md): the functions work on NumPy
 arrays, so they can be tested with pytest without starting ROS.
 """
+# AI-use declaration (report Appendix D): the code in this module was written by hand by
+# Torgeir (NAV-03); Claude (claude.ai) was used for explanation and review, and wrote test/test_distance_transform.py.
 import math
 from typing import Iterable, List, Optional, Sequence
 
@@ -21,6 +23,7 @@ from rescue_team.core.path import cells_to_points, simplify_path
 NEIGHBOURS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def _shift(a: np.ndarray, dr: int, dc: int, fill) -> np.ndarray:
     """Copy of a where cell (r, c) holds a[r + dr, c + dc]; fill outside the grid."""
     rows, cols = a.shape
@@ -42,6 +45,7 @@ def _shift(a: np.ndarray, dr: int, dc: int, fill) -> np.ndarray:
     return out
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def _relax(blocked: np.ndarray, resolution: float, field: np.ndarray) -> np.ndarray:
     """
     Spread the field from its zero cells until no value changes.
@@ -81,6 +85,7 @@ def _relax(blocked: np.ndarray, resolution: float, field: np.ndarray) -> np.ndar
         field = new
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def cost_field(blocked: np.ndarray, resolution: float,
                sources: Iterable[Cell]) -> np.ndarray:
     """
@@ -99,6 +104,7 @@ def cost_field(blocked: np.ndarray, resolution: float,
     return _relax(blocked, resolution, field)
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def wall_distance(occupied: np.ndarray, resolution: float) -> np.ndarray:
     """Distance in metres from each cell to the nearest occupied cell."""
     # Every occupied cell is a source. Nothing is blocked: if the walls were blocked,
@@ -110,6 +116,7 @@ def wall_distance(occupied: np.ndarray, resolution: float) -> np.ndarray:
     return _relax(not_blocked, resolution, field)
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def descend(field: np.ndarray, start: Cell) -> Optional[List[Cell]]:
     """
     Steepest descent from start to a source.
@@ -158,6 +165,7 @@ def descend(field: np.ndarray, start: Cell) -> Optional[List[Cell]]:
     return path
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def nearest_free_cell(blocked: np.ndarray, cell: Cell,
                       max_radius: int) -> Optional[Cell]:
     """
@@ -196,6 +204,7 @@ def nearest_free_cell(blocked: np.ndarray, cell: Cell,
     return best
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def cost_at(field: np.ndarray, grid: GridMap, point: Point) -> Optional[float]:
     """Field value at a point in metres; None if outside the grid or unreachable."""
     x, y = point
@@ -222,11 +231,13 @@ class DistanceTransformPlanner:
     (ARCHITECTURE.md sections 6.3 and 6.6).
     """
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
     def __init__(self, avoid_radius: float, max_snap_radius: int) -> None:
         """Store the disc radius in metres (peer_plan_clearance) and the snap radius in cells."""
         self.avoid_radius = avoid_radius
         self.max_snap_radius = max_snap_radius
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
     def _block_discs(self, grid: GridMap, avoid: Sequence[Point]) -> np.ndarray:
         """Copy of the grid's occupied cells with a disc around every avoid point."""
         # A copy, so the discs only exist for this plan and never end up in the grid.
@@ -249,6 +260,7 @@ class DistanceTransformPlanner:
 
         return blocked
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
     def plan(self, grid: GridMap, start: Point, goal: Point,
              avoid: Sequence[Point] = ()) -> Optional[List[Point]]:
         """

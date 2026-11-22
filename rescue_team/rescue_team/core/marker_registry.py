@@ -6,6 +6,8 @@ reports are due (ARCHITECTURE.md section 7.2). No ROS imports here (see
 docs/CODE_STRUCTURE.md): time is passed in as seconds, so the reporting
 lifecycle can be tested with pytest without starting ROS.
 """
+# AI-use declaration (report Appendix D): the code in this module was written by hand by
+# Torgeir (PER-01); Claude (claude.ai) was used for explanation and review, and wrote test/test_marker_registry.py.
 
 from dataclasses import dataclass, field
 from enum import Enum
@@ -60,12 +62,14 @@ class _MarkerState:
 class MarkerRegistry:
     """Collects sightings and decides when and what to report to scoring."""
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def __init__(self, min_sightings: int, resend_timeout: float = 5.0,
                  marker_ids: Sequence[int] = (0, 1, 2, 3, 4)) -> None:
         self.min_sightings = min_sightings
         self.resend_timeout = resend_timeout
         self._markers = {marker_id: _MarkerState() for marker_id in marker_ids}
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def add(self, sighting: Sighting) -> bool:
         """Store the sighting if its ID is known and not accepted; return whether it was kept."""
         state = self._markers.get(sighting.marker_id)
@@ -74,6 +78,7 @@ class MarkerRegistry:
         state.sightings.append(sighting)
         return True
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def estimate(self, marker_id: int) -> Optional[Point]:
         """Return the median x and y of all sightings of the marker, or None without any."""
         state = self._markers.get(marker_id)
@@ -81,6 +86,7 @@ class MarkerRegistry:
             return None
         return _median_position(state.sightings)
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def reports_due(self, now: float) -> List[Report]:
         """
         Return the new reports and the resends that are due at time now (seconds).
@@ -99,6 +105,7 @@ class MarkerRegistry:
                 reports.append(report)
         return reports
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def on_result(self, marker_id: int, attempt: int, accepted: bool) -> bool:
         """
         Store the answer from scoring; return True if this answer accepted the marker.
@@ -127,19 +134,23 @@ class MarkerRegistry:
                 state.sightings_before_wait = len(state.sightings)
         return False
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def is_accepted(self, marker_id: int) -> bool:
         """Return True if scoring has accepted the marker."""
         return self.accepted_position(marker_id) is not None
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def accepted_position(self, marker_id: int) -> Optional[Point]:
         """Return the reported position of an accepted marker, or None."""
         state = self._markers.get(marker_id)
         return state.accepted_position if state is not None else None
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def all_accepted(self) -> bool:
         """Return True if every marker ID is accepted."""
         return all(state.accepted_position is not None for state in self._markers.values())
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def _resend_if_due(self, marker_id: int, state: _MarkerState,
                        now: float) -> Optional[Report]:
         if now - state.sent_at < self.resend_timeout:
@@ -147,6 +158,7 @@ class MarkerRegistry:
         state.sent_at = now
         return Report(marker_id, state.attempt, state.reported[state.attempt])
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def _new_report_if_ready(self, marker_id: int, state: _MarkerState,
                              now: float) -> Optional[Report]:
         planned = self._next_position(state)
@@ -161,6 +173,7 @@ class MarkerRegistry:
         state.sent_at = now
         return Report(marker_id, state.attempt, position)
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
     def _next_position(self, state: _MarkerState) -> Optional[Tuple[Point, _Step]]:
         """Return the next new position and the step it is based on, or None if not ready."""
         count = len(state.sightings)
@@ -179,11 +192,13 @@ class MarkerRegistry:
         return _median_position(state.sightings), _Step.MEDIAN_OF_ALL
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
 def _median_position(sightings: Sequence[Sighting]) -> Point:
     # The median of x and y separately ignores a single outlier, unlike the mean.
     return (median(s.x for s in sightings), median(s.y for s in sightings))
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (PER-01).
 def _closer_half(sightings: Sequence[Sighting]) -> List[Sighting]:
     # Close sightings are more accurate. At least two, so one bad sighting cannot
     # decide the position alone.
