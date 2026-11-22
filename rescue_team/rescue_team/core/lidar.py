@@ -7,6 +7,8 @@ robot_handler passes the fields of a sensor_msgs/LaserScan message in.
 Lidar facts (ARCHITECTURE.md section 2, SPK-01): 360 readings, one per degree,
 counter-clockwise from straight ahead (angle 0). Invalid readings are inf. The rays
 start lidar_offset_x = -0.064 m along the robot's x axis, i.e. behind base_footprint.
+
+AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
 """
 import math
 from typing import List, Sequence

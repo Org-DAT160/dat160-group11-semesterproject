@@ -4,6 +4,8 @@ Go-to-point controller (assignment A3a; Corke chapter 4, "moving to a point").
 Given the robot pose and the next path point, it returns the speeds to send on
 cmd_vel. No ROS and no state: robot_handler calls compute() every 0.05 s and
 decides itself when a point counts as reached (ARCHITECTURE.md section 6.4).
+
+AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
 """
 import math
 from typing import Tuple

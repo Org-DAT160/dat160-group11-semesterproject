@@ -4,6 +4,8 @@ Tests for core/meeting.py on hand-made grids and the w1 map.
 The grids use 0.1 m cells, as the planning grid does, so the real parameters can be
 used: meet_radius 1.0 m, meet_radius_second 1.2 m, meet_separation 0.8 m. The cost
 fields come from `cost_field` with each robot's cell as source, as in the leader.
+
+AI use: tests written by Claude Opus 5.5.
 """
 import os
 

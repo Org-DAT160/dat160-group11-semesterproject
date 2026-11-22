@@ -9,6 +9,8 @@ camera pose at the image time, and publishes one `FoundMarker` per sighting.
 The camera message usually arrives before the robot pose for the same moment
 (SPK-01), so a message whose transform is not available yet is kept in a queue and
 tried again every 20 ms, and dropped after 1 s.
+
+AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
 """
 from collections import deque
 import math

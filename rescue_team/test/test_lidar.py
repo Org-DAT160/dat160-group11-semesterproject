@@ -1,4 +1,8 @@
-"""Tests for core/lidar.py with small hand-made scans."""
+"""
+Tests for core/lidar.py with small hand-made scans.
+
+AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+"""
 import math
 
 import pytest

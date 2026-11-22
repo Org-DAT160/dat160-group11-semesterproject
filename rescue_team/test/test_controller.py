@@ -1,4 +1,8 @@
-"""Tests for core/controller.py: the two modes, slowing down and the limits."""
+"""
+Tests for core/controller.py: the two modes, slowing down and the limits.
+
+AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+"""
 import math
 
 import pytest

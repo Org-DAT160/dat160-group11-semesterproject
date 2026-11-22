@@ -5,6 +5,8 @@ The acceptance criteria of MIS-01 (#17) ask for: every row of the transition tab
 (ARCHITECTURE.md section 5.2), ID 4 accepted before `Started`, meeting failures up to
 `meet_max_attempts`, retry of the meeting at a pass switch and once all five markers
 are accepted, results with an old `goal_id`, and `Finish` cancelling all goals.
+
+AI use: tests written by Claude Opus 5.5.
 """
 import math
 

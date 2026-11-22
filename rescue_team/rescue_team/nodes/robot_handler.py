@@ -60,6 +60,7 @@ CONFLICT_REPLAN_PERIOD = 1.0  # s, at most one plan per second because of the ot
 class RobotHandler(Node):
     """Drive one robot to targets sent through the `navigate_to` action."""
 
+    # AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
     def __init__(self):
         super().__init__('robot_handler')
 
@@ -147,7 +148,11 @@ class RobotHandler(Node):
     # ---------- sensor callbacks ----------
 
     def on_map(self, msg: OccupancyGrid) -> None:
-        """Build the static, planning and known-wall grids (section 6.1)."""
+        """
+        Build the static, planning and known-wall grids (section 6.1).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             if self.planning_grid is not None:
                 return
@@ -167,7 +172,11 @@ class RobotHandler(Node):
             self.get_logger().error(f'on_map: {e!r}')
 
     def on_odom(self, msg: Odometry) -> None:
-        """Store this robot's pose."""
+        """
+        Store this robot's pose.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             p, q = msg.pose.pose.position, msg.pose.pose.orientation
             self.pose = Pose2D(p.x, p.y, yaw_from_quaternion(q.x, q.y, q.z, q.w))
@@ -175,7 +184,11 @@ class RobotHandler(Node):
             self.get_logger().error(f'on_odom: {e!r}')
 
     def on_peer_odom(self, msg: Odometry) -> None:
-        """Store the other robot's position and its velocity in the map frame."""
+        """
+        Store the other robot's position and its velocity in the map frame.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             p, q = msg.pose.pose.position, msg.pose.pose.orientation
             yaw = yaw_from_quaternion(q.x, q.y, q.z, q.w)
@@ -186,7 +199,12 @@ class RobotHandler(Node):
             self.get_logger().error(f'on_peer_odom: {e!r}')
 
     def on_scan(self, msg: LaserScan) -> None:
-        """Turn the scan into map points that are neither known walls nor the other robot."""
+        """
+        Turn the scan into map points that are neither known walls nor the other robot.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
+        """
         try:
             self.scan = msg
             if self.pose is None or self.known_wall_grid is None:
@@ -202,7 +220,11 @@ class RobotHandler(Node):
             self.get_logger().error(f'on_scan: {e!r}')
 
     def on_ready_timer(self) -> None:
-        """Create the action server once the map and the own pose are known."""
+        """
+        Create the action server once the map and the own pose are known.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             if self.planning_grid is None or self.pose is None:
                 return
@@ -222,15 +244,27 @@ class RobotHandler(Node):
     # ---------- action server callbacks ----------
 
     def goal_callback(self, goal_request) -> GoalResponse:
-        """Accept every goal; the newest one replaces the running one."""
+        """
+        Accept every goal; the newest one replaces the running one.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         return GoalResponse.ACCEPT
 
     def cancel_callback(self, goal_handle) -> CancelResponse:
-        """Accept every cancel request."""
+        """
+        Accept every cancel request.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         return CancelResponse.ACCEPT
 
     def handle_accepted_callback(self, goal_handle) -> None:
-        """Make the new goal the active one, then start it."""
+        """
+        Make the new goal the active one, then start it.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             with self.goal_lock:
                 self.active_goal = goal_handle
@@ -239,7 +273,11 @@ class RobotHandler(Node):
             self.get_logger().error(f'handle_accepted_callback: {e!r}')
 
     def execute_callback(self, goal_handle) -> NavigateTo.Result:
-        """Run one goal: navigate, spin if requested, and end with the right status."""
+        """
+        Run one goal: navigate, spin if requested, and end with the right status.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         target = goal_handle.request.target
         spin = goal_handle.request.spin_on_arrival
         message = 'aborted'
@@ -280,6 +318,9 @@ class RobotHandler(Node):
         path; then it is planned without the disc. Return the simplified path as a
         list of (x, y) points from the start cell centre to the goal cell centre, or
         None if no path exists.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
         """
         self.publish_velocity(goal_handle, 0.0, 0.0)
 
@@ -307,6 +348,9 @@ class RobotHandler(Node):
         peer_wait_timeout; without right of way it asks for a new plan at once (at most
         once per second) and ends with peer after peer_wait_timeout. Waiting does not
         count as being stuck. Return reached, stuck, replan, peer, preempted or cancelled.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
         """
         feedback = NavigateTo.Feedback()
         index = 1
@@ -363,7 +407,12 @@ class RobotHandler(Node):
         return 'aborted'
 
     def recover(self, goal_handle) -> str:
-        """Reverse up to reverse_distance while the rear is clear (section 6.5). Return done."""
+        """
+        Reverse up to reverse_distance while the rear is clear (section 6.5). Return done.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
+        """
         start = (self.pose.x, self.pose.y)
         deadline = self.now() + 2.0 * self.p['reverse_distance'] / self.p['reverse_speed']
         while rclpy.ok():
@@ -388,6 +437,9 @@ class RobotHandler(Node):
         count as recoveries, and the conflict timer in `conflict` lives on across them.
         Return reached, no path, stuck, peer, preempted or cancelled. A path of one point
         means the robot already stands in the goal cell.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
         """
         replans = 0
         conflict = {'since': None, 'last_replan': None}    # survives replans of this goal
@@ -417,6 +469,8 @@ class RobotHandler(Node):
 
         Return reached, preempted or cancelled. Ends after twice the nominal time at the
         latest (then also `reached`: the target itself was reached).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
         """
         angle, speed = self.p['spin_angle'], self.p['spin_speed']
         steps = max(1, math.ceil(angle / self.p['spin_step']))
@@ -468,12 +522,22 @@ class RobotHandler(Node):
     # ---------- helpers ----------
 
     def obstacle_ahead(self) -> bool:
-        """Return True if a point of the latest scan lies in the stop zone ahead of the robot."""
+        """
+        Return True if a point of the latest scan lies in the stop zone ahead of the robot.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
+        """
         return points_ahead(self.obstacle_points, self.pose,
                             self.p['obstacle_stop_distance'], self.p['obstacle_half_width'])
 
     def rear_clear(self) -> bool:
-        """Return True if nothing is close behind: no lidar reading and not the other robot."""
+        """
+        Return True if nothing is close behind: no lidar reading and not the other robot.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
+        """
         scan = self.scan
         if scan is None:
             return False
@@ -491,7 +555,12 @@ class RobotHandler(Node):
         return True
 
     def peer_blocks(self, path, index) -> bool:
-        """Return True if the remaining path runs into the other robot (section 6.6, rule 2)."""
+        """
+        Return True if the remaining path runs into the other robot (section 6.6, rule 2).
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
+        """
         if self.peer_position is None:
             return False
         return peer_conflict(path[index:], (self.pose.x, self.pose.y), self.peer_position,
@@ -499,7 +568,11 @@ class RobotHandler(Node):
                              self.p['peer_stop_clearance'])
 
     def check_goal(self, goal_handle) -> Optional[str]:
-        """Return preempted or cancelled if the goal must end now, otherwise None."""
+        """
+        Return preempted or cancelled if the goal must end now, otherwise None.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         if goal_handle is not self.active_goal:
             return 'preempted'
         if goal_handle.is_cancel_requested:
@@ -507,7 +580,11 @@ class RobotHandler(Node):
         return None
 
     def publish_velocity(self, goal_handle, v: float, omega: float) -> bool:
-        """Clamp and publish, but only for the active goal. Return False otherwise."""
+        """
+        Clamp and publish, but only for the active goal. Return False otherwise.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         max_omega = max(self.p['max_angular_speed'], self.p['spin_speed'])
         twist = Twist()
         twist.linear.x = float(max(-self.p['max_linear_speed'],
@@ -520,10 +597,15 @@ class RobotHandler(Node):
         return True
 
     def now(self) -> float:
-        """Return the simulation time in seconds (use_sim_time); used for timeouts (section 10)."""
+        """
+        Return the simulation time in seconds (use_sim_time); used for timeouts (section 10).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         return self.get_clock().now().nanoseconds * 1e-9
 
 
+# AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
 def main(args=None):
     rclpy.init(args=args)
     node = RobotHandler()

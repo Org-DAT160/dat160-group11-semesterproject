@@ -79,6 +79,9 @@ def generate_coverage_viewpoints(grid: GridMap, planning: GridMap, wall_dist: np
     single row, which a coarser lattice skips (w3 marker 1). `grid` is the static
     grid (walls, line of sight), `planning` the inflated grid (where the robot can
     stand).
+
+    AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+    specification and reviewed the change.
     """
     faces = _wall_faces(grid.occupied)
     if not faces:
@@ -105,7 +108,12 @@ def generate_coverage_viewpoints(grid: GridMap, planning: GridMap, wall_dist: np
 def _seen_faces(grid: GridMap, faces: List[Tuple[int, int, int, int]],
                 candidates: List[Cell], min_range: float, max_range: float,
                 max_angle: float) -> List[Set[int]]:
-    """Return, for every candidate cell, the indices of the faces it sees (see above)."""
+    """
+    Return, for every candidate cell, the indices of the faces it sees (see above).
+
+    AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+    specification and reviewed the change.
+    """
     face = np.array(faces, dtype=float)
     face_row, face_col, normal_row, normal_col = face.T
     cos_max = math.cos(math.radians(max_angle))
@@ -127,7 +135,12 @@ def _seen_faces(grid: GridMap, faces: List[Tuple[int, int, int, int]],
 
 
 def _wall_faces(occupied: np.ndarray) -> List[Tuple[int, int, int, int]]:
-    """Return (row, col, normal_row, normal_col) for every free cell next to a wall."""
+    """
+    Return (row, col, normal_row, normal_col) for every free cell next to a wall.
+
+    AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+    specification and reviewed the change.
+    """
     rows, cols = occupied.shape
     faces = []
     for d_row, d_col in ((1, 0), (-1, 0), (0, 1), (0, -1)):

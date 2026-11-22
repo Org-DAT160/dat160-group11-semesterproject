@@ -75,6 +75,7 @@ STATUS_NAMES = {
 class Leader(Node):
     """Turn ROS callbacks into mission events and mission commands into ROS calls."""
 
+    # AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
     def __init__(self):
         super().__init__('leader')
 
@@ -161,13 +162,21 @@ class Leader(Node):
     # ---------- helpers ----------
 
     def now(self) -> float:
-        """Return the simulation time in seconds (0 until the first /clock message)."""
+        """
+        Return the simulation time in seconds (0 until the first /clock message).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         return self.get_clock().now().nanoseconds * 1e-9
 
     # ---------- sensor callbacks ----------
 
     def on_map(self, msg: OccupancyGrid) -> None:
-        """Build the static and planning grids and the wall distance once (section 6.1)."""
+        """
+        Build the static and planning grids and the wall distance once (section 6.1).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             if self.static_grid is not None:
                 return
@@ -187,7 +196,11 @@ class Leader(Node):
             self.get_logger().error(f'on_map: {e!r}')
 
     def on_odom(self, robot: str, msg: Odometry) -> None:
-        """Store the robot's position (odometry equals the map pose here, SPK-01)."""
+        """
+        Store the robot's position (odometry equals the map pose here, SPK-01).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             p = msg.pose.pose.position
             self.positions[robot] = (float(p.x), float(p.y))
@@ -195,7 +208,11 @@ class Leader(Node):
             self.get_logger().error(f'on_odom({robot}): {e!r}')
 
     def on_found_marker(self, msg: FoundMarker) -> None:
-        """Add one sighting to the registry (ignored once its marker is accepted)."""
+        """
+        Add one sighting to the registry (ignored once its marker is accepted).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             stamp_ns = msg.header.stamp.sec * 1_000_000_000 + msg.header.stamp.nanosec
             sighting = Sighting(
@@ -214,7 +231,11 @@ class Leader(Node):
     # ---------- timers ----------
 
     def on_timer(self) -> None:
-        """Report due markers. Before Started: check the start conditions; after: send Tick."""
+        """
+        Report due markers. Before Started: check the start conditions; after: send Tick.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             now = self.now()
             self.report_markers(now)
@@ -239,7 +260,11 @@ class Leader(Node):
             self.get_logger().error(f'on_timer: {e!r}')
 
     def on_log_timer(self) -> None:
-        """Until Started, every 5 s: log the unmet start conditions and missing camera topics."""
+        """
+        Until Started, every 5 s: log the unmet start conditions and missing camera topics.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             if self.started:
                 self.log_timer.cancel()
@@ -258,7 +283,11 @@ class Leader(Node):
     # ---------- start-up (section 11) ----------
 
     def unmet_conditions(self, now: float) -> List[str]:
-        """Return the start conditions that do not hold yet (empty when ready)."""
+        """
+        Return the start conditions that do not hold yet (empty when ready).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         unmet = []
         if now <= 0.0:
             unmet.append('simulation clock not running (no /clock)')
@@ -277,7 +306,11 @@ class Leader(Node):
         return unmet
 
     def send_started(self, now: float) -> None:
-        """Send Started with the robots' start positions and the viewpoint passes."""
+        """
+        Send Started with the robots' start positions and the viewpoint passes.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         robots = {robot: self.positions[robot] for robot in self.robots}
         passes = self.passes
         self.started = True
@@ -293,6 +326,9 @@ class Leader(Node):
 
         The start field has both robots' snapped cells as sources, so only viewpoints
         that a robot can reach are kept. Pass 1 is shifted by half the spacing.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
         """
         grid = self.planning_grid
         cells = [nearest_free_cell(grid.occupied, grid.world_to_cell(*self.positions[robot]),
@@ -322,6 +358,8 @@ class Leader(Node):
         Return the travel distance from the robot to `target` (CostFn); None if unreachable.
 
         Read from the robot's cost field, so detours around walls count (section 8.2).
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
         """
         field = self.robot_field(robot, around_peer=robot in self.avoid_peer)
         if field is None:
@@ -334,6 +372,9 @@ class Leader(Node):
 
         Uses the accepted position of marker 4 and a cost field per robot on the
         planning grid. Called by Mission when the meeting starts or a point failed.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
         """
         marker = self.registry.accepted_position(BIG_FIRE_ID)
         if marker is None or self.planning_grid is None:
@@ -368,6 +409,9 @@ class Leader(Node):
         to a wall stands inside the inflated area. None without a position or free
         cell. The field is cached while the robot stays in the same cell, because the
         allocator asks for the cost of every viewpoint.
+
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
         """
         position = self.positions.get(robot)
         if position is None:
@@ -411,7 +455,11 @@ class Leader(Node):
     # ---------- marker reporting (section 7.2) ----------
 
     def report_markers(self, now: float) -> None:
-        """Send every report the registry says is due, once the scoring service is up."""
+        """
+        Send every report the registry says is due, once the scoring service is up.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         if not self.report_client.service_is_ready():
             return                      # nothing is marked as sent while scoring is away
         for report in self.registry.reports_due(now):
@@ -428,7 +476,11 @@ class Leader(Node):
                 lambda f, report=report: self.on_report_response(report, f))
 
     def on_report_response(self, report: Report, future) -> None:
-        """Pass the answer to the registry; dispatch MarkerAccepted for a newly accepted marker."""
+        """
+        Pass the answer to the registry; dispatch MarkerAccepted for a newly accepted marker.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             accepted = bool(future.result().accepted)
             newly_accepted = self.registry.on_result(report.marker_id, report.attempt, accepted)
@@ -447,7 +499,11 @@ class Leader(Node):
     # ---------- mission events and commands ----------
 
     def dispatch(self, event) -> None:
-        """Hand one event to the mission, log a state change and execute the commands."""
+        """
+        Hand one event to the mission, log a state change and execute the commands.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         before = self.mission.state
         commands = self.mission.handle(event)
         after = self.mission.state
@@ -457,7 +513,11 @@ class Leader(Node):
         self.execute(commands)
 
     def execute(self, commands: List[Command]) -> None:
-        """Run each command as a ROS call, in order."""
+        """
+        Run each command as a ROS call, in order.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         for command in commands:
             if isinstance(command, SendGoal):
                 self.send_goal(command.robot, command.goal_id, command.target, command.spin)
@@ -470,7 +530,11 @@ class Leader(Node):
                     f'all markers accepted, meeting held={self.mission.meeting_done}')
 
     def send_goal(self, robot: str, goal_id: int, target: Point, spin: bool) -> None:
-        """Send a NavigateTo goal without waiting; the answer comes in on_goal_response."""
+        """
+        Send a NavigateTo goal without waiting; the answer comes in on_goal_response.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         goal = NavigateTo.Goal()
         goal.target = PointMsg(x=float(target[0]), y=float(target[1]), z=0.0)
         goal.spin_on_arrival = bool(spin)
@@ -485,7 +549,11 @@ class Leader(Node):
             lambda f, robot=robot, goal_id=goal_id: self.on_goal_response(robot, goal_id, f))
 
     def on_goal_response(self, robot: str, goal_id: int, future) -> None:
-        """Store the handle of an accepted goal; a rejected goal is a failed goal."""
+        """
+        Store the handle of an accepted goal; a rejected goal is a failed goal.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             handle = future.result()
             if not handle.accepted:
@@ -506,7 +574,11 @@ class Leader(Node):
             self.get_logger().error(f'on_goal_response({robot}, {goal_id}): {e!r}')
 
     def on_goal_result(self, robot: str, goal_id: int, future) -> None:
-        """Pass the result to the mission; it ignores results of replaced goals itself."""
+        """
+        Pass the result to the mission; it ignores results of replaced goals itself.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         try:
             response = future.result()
             result = response.result
@@ -526,7 +598,11 @@ class Leader(Node):
             self.get_logger().error(f'on_goal_result({robot}, {goal_id}): {e!r}')
 
     def cancel_goal(self, robot: str) -> None:
-        """Send a cancel request for the robot's newest goal, or as soon as it is accepted."""
+        """
+        Send a cancel request for the robot's newest goal, or as soon as it is accepted.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         goal_id = self.sent_goal_id.get(robot)
         if goal_id is None:
             return
@@ -539,12 +615,17 @@ class Leader(Node):
             self.get_logger().info(f'{robot}: goal {goal_id} will be cancelled when accepted')
 
     def destroy_node(self) -> None:
-        """Destroy the action clients first; in Foxy they fail if the node goes first."""
+        """
+        Destroy the action clients first; in Foxy they fail if the node goes first.
+
+        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        """
         for client in self.nav_clients.values():
             client.destroy()
         super().destroy_node()
 
 
+# AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
 def main(args=None):
     rclpy.init(args=args)
     node = Leader()

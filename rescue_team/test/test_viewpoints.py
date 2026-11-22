@@ -236,7 +236,11 @@ def test_course_maps_give_valid_viewpoints(world, offset):
 # ---------- generate_coverage_viewpoints (INT-02 play) ----------
 
 def corridor_grids(width_cells):
-    """Return (static grid, planning grid) of a 6 m long corridor, 0.1 m cells, walls around it."""
+    """
+    Return (static grid, planning grid) of a 6 m long corridor, 0.1 m cells, walls around it.
+
+    AI use: tests written by Claude Opus 5.5.
+    """
     rows, cols = width_cells + 2, 62
     occupied = np.zeros((rows, cols), dtype=bool)
     occupied[0, :] = occupied[-1, :] = True
@@ -246,7 +250,11 @@ def corridor_grids(width_cells):
 
 
 def coverage(width_cells, clearance):
-    """Run generate_coverage_viewpoints on corridor_grids with the INT-02 play values."""
+    """
+    Run generate_coverage_viewpoints on corridor_grids with the INT-02 play values.
+
+    AI use: tests written by Claude Opus 5.5.
+    """
     static, planning = corridor_grids(width_cells)
     wall = wall_distance(static.occupied, static.resolution)
     start = cost_field(planning.occupied, 0.1, [(static.occupied.shape[0] // 2, 30)])
@@ -255,7 +263,11 @@ def coverage(width_cells, clearance):
 
 
 def test_coverage_viewpoints_in_a_narrow_corridor():
-    """A 1.6 m corridor gets viewpoints although no cell is 0.9 m from both walls."""
+    """
+    A 1.6 m corridor gets viewpoints although no cell is 0.9 m from both walls.
+
+    AI use: tests written by Claude Opus 5.5.
+    """
     static, viewpoints = coverage(16, 0.5)
     assert viewpoints
     for x, y in viewpoints:
@@ -264,13 +276,21 @@ def test_coverage_viewpoints_in_a_narrow_corridor():
 
 
 def test_coverage_viewpoints_too_narrow_for_the_clearance():
-    """With a clearance wider than half the corridor there is no usable cell."""
+    """
+    With a clearance wider than half the corridor there is no usable cell.
+
+    AI use: tests written by Claude Opus 5.5.
+    """
     _, viewpoints = coverage(16, 0.9)
     assert viewpoints == []
 
 
 def test_coverage_viewpoints_cover_both_long_walls():
-    """Every 10 cm of the two long walls away from the ends is seen by some viewpoint."""
+    """
+    Every 10 cm of the two long walls away from the ends is seen by some viewpoint.
+
+    AI use: tests written by Claude Opus 5.5.
+    """
     static, viewpoints = coverage(16, 0.5)
     for wall_y in (0.15, 1.65):          # face cells next to the bottom and top wall
         for x in np.arange(1.05, 5.0, 0.1):

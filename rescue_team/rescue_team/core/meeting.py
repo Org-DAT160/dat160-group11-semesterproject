@@ -24,6 +24,9 @@ cells are inf in every field, so "reachable" also means "free".
 
 No ROS imports here: the function works on plain arrays and can be tested with pytest
 (test/test_meeting.py).
+
+AI use: logic written by Jonas; docstrings by Claude Opus 5.5, which also explained the
+specification and reviewed the changes.
 """
 import math
 from typing import Dict, List, Optional, Sequence, Tuple

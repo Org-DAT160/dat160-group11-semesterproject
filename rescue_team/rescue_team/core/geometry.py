@@ -3,6 +3,8 @@ Shared types and geometry helpers, used by every other module.
 
 No ROS imports here (see docs/CODE_STRUCTURE.md): these functions work on plain
 numbers, so they can be tested with pytest without starting ROS.
+
+AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
 """
 from dataclasses import dataclass
 import math

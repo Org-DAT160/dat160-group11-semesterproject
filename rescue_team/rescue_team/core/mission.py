@@ -30,6 +30,9 @@ A typical run:
 Every goal has an id (`goal_id`, always increasing) and a deadline. A result with an
 old id belongs to a goal that was replaced and is ignored; a goal past its deadline
 is cancelled on the next Tick and counts as a failure.
+
+AI use: logic written by Jonas; docstrings by Claude Opus 5.5, which also explained the
+specification and reviewed the changes.
 """
 from dataclasses import dataclass
 import enum

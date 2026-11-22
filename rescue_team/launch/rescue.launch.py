@@ -10,6 +10,8 @@ Examples (see the README for all arguments):
     ros2 launch rescue_team rescue.launch.py variant:=w1 gui:=true rviz:=true
     ros2 launch rescue_team rescue.launch.py start_world:=false     # only our nodes
     ros2 launch rescue_team rescue.launch.py leader:=false          # drive by hand-sent goals
+
+AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
 """
 import os
 

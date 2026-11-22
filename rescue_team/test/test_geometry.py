@@ -1,4 +1,8 @@
-"""Tests for core/geometry.py, against cases that can be checked by hand."""
+"""
+Tests for core/geometry.py, against cases that can be checked by hand.
+
+AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+"""
 import math
 
 import pytest
