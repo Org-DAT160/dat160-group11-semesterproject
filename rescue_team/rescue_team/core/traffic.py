@@ -7,6 +7,8 @@ detect when its own path runs into the other robot and to decide who waits
 the functions work on plain tuples, so they can be tested with pytest without
 starting ROS.
 """
+# AI-use declaration (report Appendix D): the code in this module was written by hand by
+# Torgeir (NAV-07); Claude (claude.ai) was used for explanation and review, and wrote test/test_traffic.py.
 
 from typing import List, Sequence
 
@@ -14,17 +16,20 @@ from rescue_team.core.geometry import distance, Point
 from rescue_team.core.path import remaining_length
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-07).
 def has_right_of_way(me: str, other: str, robots: Sequence[str]) -> bool:
     """Return True if me comes before other in the robots list."""
     return robots.index(me) < robots.index(other)
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-07).
 def remove_near(points: List[Point], centres: Sequence[Point], radius: float) -> List[Point]:
     """Return the points that are at least radius from every centre, in the same order."""
     return [point for point in points
             if all(distance(point, centre) >= radius for centre in centres)]
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-07).
 def peer_conflict(remaining: Sequence[Point], me: Point, peer: Point, peer_velocity: Point,
                   lookahead: float, clearance: float, step: float = 0.1,
                   away_speed: float = 0.1, away_gap: float = 0.7) -> bool:
@@ -53,6 +58,7 @@ def peer_conflict(remaining: Sequence[Point], me: Point, peer: Point, peer_veloc
     return False
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-07).
 def _moving_away(me: Point, peer: Point, peer_velocity: Point, away_speed: float) -> bool:
     """Return True if peer moves away from me faster than away_speed."""
     dx = peer[0] - me[0]
@@ -64,6 +70,7 @@ def _moving_away(me: Point, peer: Point, peer_velocity: Point, away_speed: float
     return vx * dx + vy * dy > away_speed * distance(me, peer)
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-07).
 def _samples(me: Point, remaining: Sequence[Point], lookahead: float,
              step: float) -> List[Point]:
     """Points every step metres along the path from me, up to lookahead or the path end."""
@@ -77,6 +84,7 @@ def _samples(me: Point, remaining: Sequence[Point], lookahead: float,
     return [_point_at(path, along) for along in along_path]
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-07).
 def _point_at(points: Sequence[Point], along: float) -> Point:
     """Point along metres along the polyline points; the last point if beyond its end."""
     travelled = 0.0

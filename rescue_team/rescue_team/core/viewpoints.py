@@ -7,6 +7,8 @@ the start positions (ARCHITECTURE.md section 8.1). No ROS imports here (see
 docs/CODE_STRUCTURE.md): the function works on GridMap and NumPy arrays, so it
 can be tested with pytest without starting ROS.
 """
+# AI-use declaration (report Appendix D): the MIS-05 functions were written by hand by
+# Torgeir; the coverage functions (PR #58) were drafted by Claude (claude.ai). Notes below.
 
 import math
 from typing import List, Set, Tuple
@@ -22,6 +24,7 @@ from rescue_team.core.grid import GridMap
 MIN_GAIN = 8
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
 def generate_viewpoints(grid: GridMap, wall_dist: np.ndarray, start_field: np.ndarray,
                         spacing: float, offset: Point, spin_clearance: float,
                         max_wall_distance: float) -> List[Point]:
@@ -59,6 +62,7 @@ def generate_viewpoints(grid: GridMap, wall_dist: np.ndarray, start_field: np.nd
     return viewpoints
 
 
+# AI use: drafted by Claude (claude.ai); reviewed and tested by Jonas (coverage, PR #58).
 def generate_coverage_viewpoints(grid: GridMap, planning: GridMap, wall_dist: np.ndarray,
                                  start_field: np.ndarray, clearance: float, step: float,
                                  min_range: float, max_range: float,
@@ -105,6 +109,7 @@ def generate_coverage_viewpoints(grid: GridMap, planning: GridMap, wall_dist: np
     return [grid.cell_to_world(*candidates[i]) for i in chosen]
 
 
+# AI use: drafted by Claude (claude.ai); reviewed and tested by Jonas (coverage, PR #58).
 def _seen_faces(grid: GridMap, faces: List[Tuple[int, int, int, int]],
                 candidates: List[Cell], min_range: float, max_range: float,
                 max_angle: float) -> List[Set[int]]:
@@ -134,6 +139,7 @@ def _seen_faces(grid: GridMap, faces: List[Tuple[int, int, int, int]],
     return seen_by
 
 
+# AI use: drafted by Claude (claude.ai); reviewed and tested by Jonas (coverage, PR #58).
 def _wall_faces(occupied: np.ndarray) -> List[Tuple[int, int, int, int]]:
     """
     Return (row, col, normal_row, normal_col) for every free cell next to a wall.
@@ -153,6 +159,7 @@ def _wall_faces(occupied: np.ndarray) -> List[Tuple[int, int, int, int]]:
     return faces
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
 def _lattice(grid: GridMap, spacing: float, offset: Point) -> List[Point]:
     """Return lattice points every spacing metres from the map origin plus offset, row by row."""
     rows, cols = grid.occupied.shape

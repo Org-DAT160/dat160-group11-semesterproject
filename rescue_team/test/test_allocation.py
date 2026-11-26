@@ -5,6 +5,8 @@ The cost function looks the travel distance up in a table per robot, so the test
 choose the costs directly. A viewpoint missing from a robot's table is
 unreachable for it (cost None).
 """
+# AI-use declaration (report Appendix D): the tests in this module were written by Claude
+# (claude.ai), and reviewed and run by Torgeir (MIS-05).
 import pytest
 
 try:
@@ -22,8 +24,10 @@ S = (3.0, 0.0)
 ALL = [P, Q, R, S]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def table_cost(table):
     """Cost function from {robot: {viewpoint: cost}}; missing entries are unreachable."""
+    # AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
     def cost(robot, viewpoint):
         return table[robot].get(viewpoint)
     return cost
@@ -41,6 +45,7 @@ SAME = table_cost({
 })
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def allocator(targets=ALL):
     a = GreedyAllocator()
     a.set_targets(targets)
@@ -49,14 +54,17 @@ def allocator(targets=ALL):
 
 # next_target
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_cheapest_free_viewpoint():
     assert allocator().next_target('tb3_0', COST) == P
     assert allocator().next_target('tb3_1', COST) == S
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_cost_is_asked_for_the_robot_and_every_viewpoint():
     calls = []
 
+    # AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
     def cost(robot, viewpoint):
         calls.append((robot, viewpoint))
         return 1.0
@@ -65,36 +73,43 @@ def test_cost_is_asked_for_the_robot_and_every_viewpoint():
     assert sorted(calls) == sorted(('tb3_1', v) for v in ALL)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_unreachable_viewpoints_are_skipped():
     cost = table_cost({'tb3_0': {R: 5.0, S: 9.0}})
     assert allocator().next_target('tb3_0', cost) == R
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_none_when_nothing_is_reachable():
     cost = table_cost({'tb3_0': {}})
     assert allocator().next_target('tb3_0', cost) is None
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_none_without_targets():
     assert allocator([]).next_target('tb3_0', COST) is None
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_a_cost_of_zero_is_reachable():
     cost = table_cost({'tb3_0': {Q: 0.0, R: 1.0}})
     assert allocator().next_target('tb3_0', cost) == Q
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_equal_costs_pick_the_first_in_the_list():
     cost = table_cost({'tb3_0': {P: 2.0, Q: 1.0, R: 1.0, S: 1.0}})
     assert allocator().next_target('tb3_0', cost) == Q
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_reservations_split_two_robots():
     a = allocator()
     assert a.next_target('tb3_0', SAME) == P
     assert a.next_target('tb3_1', SAME) == Q
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_none_when_every_viewpoint_is_reserved():
     a = allocator([P, Q])
     a.next_target('tb3_0', SAME)
@@ -102,6 +117,7 @@ def test_none_when_every_viewpoint_is_reserved():
     assert a.next_target('tb3_2', table_cost({'tb3_2': {P: 1.0, Q: 1.0}})) is None
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_a_robot_holds_at_most_one_reservation():
     a = allocator()
     a.next_target('tb3_0', SAME)
@@ -109,6 +125,7 @@ def test_a_robot_holds_at_most_one_reservation():
     assert a.free_count() == 3
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_asking_again_can_give_the_robot_its_own_reservation_back():
     # The old reservation is released first, so it is free again for this robot.
     a = allocator()
@@ -118,6 +135,7 @@ def test_asking_again_can_give_the_robot_its_own_reservation_back():
 
 # complete
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_success_marks_the_viewpoint_visited():
     a = allocator()
     a.next_target('tb3_0', SAME)                      # P
@@ -127,6 +145,7 @@ def test_success_marks_the_viewpoint_visited():
     assert a.next_target('tb3_1', SAME) == R
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_first_failure_frees_it_for_the_other_robot_only():
     a = allocator()
     a.next_target('tb3_0', SAME)                      # P
@@ -136,6 +155,7 @@ def test_first_failure_frees_it_for_the_other_robot_only():
     assert a.next_target('tb3_1', SAME) == P
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_second_failure_drops_the_viewpoint():
     a = allocator()
     a.next_target('tb3_0', SAME)                      # P
@@ -147,6 +167,7 @@ def test_second_failure_drops_the_viewpoint():
     assert a.next_target('tb3_1', SAME) == R
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_complete_ends_the_reservation():
     a = allocator([P])
     a.next_target('tb3_0', SAME)
@@ -156,6 +177,7 @@ def test_complete_ends_the_reservation():
     assert a.next_target('tb3_1', SAME) is None
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_complete_without_a_reservation_does_nothing():
     a = allocator()
     a.complete('tb3_0', True)
@@ -164,6 +186,7 @@ def test_complete_without_a_reservation_does_nothing():
     assert a.next_target('tb3_0', SAME) == P
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_complete_only_touches_the_robots_own_reservation():
     a = allocator()
     a.next_target('tb3_0', SAME)                      # P
@@ -177,6 +200,7 @@ def test_complete_only_touches_the_robots_own_reservation():
 
 # release
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_release_frees_the_viewpoint_without_marking_it():
     a = allocator()
     a.next_target('tb3_0', SAME)                      # P
@@ -185,12 +209,14 @@ def test_release_frees_the_viewpoint_without_marking_it():
     assert a.next_target('tb3_0', SAME) == P
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_release_without_a_reservation_does_nothing():
     a = allocator()
     a.release('tb3_0')
     assert a.free_count() == 4
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_release_keeps_an_earlier_failure():
     a = allocator()
     a.next_target('tb3_0', SAME)                      # P
@@ -200,6 +226,7 @@ def test_release_keeps_an_earlier_failure():
     assert a.next_target('tb3_0', SAME) == Q
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_release_then_complete_does_nothing():
     a = allocator()
     a.next_target('tb3_0', SAME)                      # P
@@ -210,6 +237,7 @@ def test_release_then_complete_does_nothing():
 
 # free_count and set_targets
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_free_count_counts_neither_visited_dropped_nor_reserved():
     a = allocator()
     assert a.free_count() == 4
@@ -223,6 +251,7 @@ def test_free_count_counts_neither_visited_dropped_nor_reserved():
     assert a.free_count() == 3
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (MIS-05).
 def test_set_targets_starts_a_new_pass():
     a = allocator()
     a.next_target('tb3_0', SAME)                      # P

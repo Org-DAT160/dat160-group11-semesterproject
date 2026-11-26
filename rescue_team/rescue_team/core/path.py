@@ -7,6 +7,8 @@ recovery (section 6.5). No ROS imports here (see docs/CODE_STRUCTURE.md): the
 functions work on plain numbers and NumPy arrays, so they can be tested with
 pytest without starting ROS.
 """
+# AI-use declaration (report Appendix D): the code in this module was written by hand by
+# Torgeir (NAV-03); Claude (claude.ai) was used for explanation and review, and wrote test/test_path.py.
 
 import math
 from typing import List
@@ -17,6 +19,7 @@ from rescue_team.core.geometry import Cell, distance, Point
 from rescue_team.core.grid import GridMap
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def cells_to_points(grid: GridMap, cells: List[Cell]) -> List[Point]:
     """Convert a grid path to the centres of its cells in metres, in the same order."""
     # Reuse cell_to_world so the cell-centre formula lives in one place only.
@@ -26,6 +29,7 @@ def cells_to_points(grid: GridMap, cells: List[Cell]) -> List[Point]:
     return points
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def line_of_sight(grid: GridMap, blocked: np.ndarray, a: Point, b: Point) -> bool:
     """
     Return True if the straight line from a to b crosses no blocked cell.
@@ -53,6 +57,7 @@ def line_of_sight(grid: GridMap, blocked: np.ndarray, a: Point, b: Point) -> boo
     return True
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def simplify_path(grid: GridMap, blocked: np.ndarray, points: List[Point]) -> List[Point]:
     """
     Remove the zig-zag of a grid path and keep only start, corners and goal.
@@ -80,6 +85,7 @@ def simplify_path(grid: GridMap, blocked: np.ndarray, points: List[Point]) -> Li
     return result
 
 
+# AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
 def remaining_length(points: List[Point], index: int, position: Point) -> float:
     """Distance from position to points[index] plus the rest of the path, in metres."""
     # From where the robot actually is, which may be beside the path.
@@ -101,6 +107,7 @@ class ProgressMonitor:
     the last progress, so many small steps add up, but turning back and forth does not.
     """
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
     def __init__(self, timeout: float, min_progress: float) -> None:
         """Store stuck_timeout (s) and stuck_min_progress (m)."""
         self.timeout = timeout
@@ -109,11 +116,13 @@ class ProgressMonitor:
         self.best_remaining = np.inf
         self.last_progress_time = 0.0
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
     def reset(self, now: float, remaining: float) -> None:
         """Start again from the current remaining length, for a new plan or while waiting."""
         self.best_remaining = remaining
         self.last_progress_time = now
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-03).
     def update(self, now: float, remaining: float) -> bool:
         """Record the remaining length at time now; return True if the robot is stuck."""
         # Compare with the value at the last progress, not with the last update:

@@ -6,6 +6,8 @@ the first character is column 0 (array indexing, no row flip involved).
 Expected field values are worked out by hand with h = 1 unless stated otherwise;
 S stands for the diagonal step sqrt(2).
 """
+# AI-use declaration (report Appendix D): the tests in this module were written by Claude
+# (claude.ai), and reviewed and run by Torgeir (NAV-03).
 import math
 import os
 import time
@@ -38,12 +40,14 @@ S = math.sqrt(2.0)
 INF = math.inf
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def parse(text):
     """Turn a text grid into a bool array."""
     rows = [line.strip() for line in text.strip().splitlines()]
     return np.array([[ch == '#' for ch in row] for row in rows], dtype=bool)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def assert_field(field, expected):
     """Compare a field with nested lists of expected values, inf included."""
     expected = np.array(expected, dtype=float)
@@ -54,6 +58,7 @@ def assert_field(field, expected):
     assert field[finite] == pytest.approx(expected[finite])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def assert_valid_descent(field, path, start):
     """Path starts at start, ends on a source and every step is a legal step downhill."""
     assert path[0] == start
@@ -85,21 +90,25 @@ EXAMPLE_FIELD = [
 
 # --- cost_field ---------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_open_row():
     field = cost_field(parse('.....'), 0.1, [(0, 0)])
     assert_field(field, [[0.0, 0.1, 0.2, 0.3, 0.4]])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_small_known_grid():
     field = cost_field(parse(EXAMPLE), 1.0, [(0, 5)])
     assert_field(field, EXAMPLE_FIELD)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_scales_with_resolution():
     field = cost_field(parse(EXAMPLE), 0.1, [(0, 5)])
     assert_field(field, np.array(EXAMPLE_FIELD) * 0.1)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_diagonal_step_in_open_space():
     field = cost_field(parse('...\n...\n...'), 1.0, [(1, 1)])
     assert_field(field, [
@@ -109,6 +118,7 @@ def test_cost_field_diagonal_step_in_open_space():
     ])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_wall_in_the_way():
     # Straight-line distance from (0, 0) to (0, 4) is 4, but the wall forces a detour
     # through the gap in the bottom row.
@@ -124,6 +134,7 @@ def test_cost_field_wall_in_the_way():
     ])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_no_corner_cutting_past_one_wall():
     # (1, 1) is diagonal to the source, but the step would cut the corner of (0, 1).
     field = cost_field(parse("""
@@ -136,6 +147,7 @@ def test_cost_field_no_corner_cutting_past_one_wall():
     ])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_no_squeezing_between_two_corners():
     field = cost_field(parse("""
         .#
@@ -147,6 +159,7 @@ def test_cost_field_no_squeezing_between_two_corners():
     ])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_unreachable_cell_is_inf():
     field = cost_field(parse("""
         .....
@@ -158,26 +171,31 @@ def test_cost_field_unreachable_cell_is_inf():
     assert field[3, 4] == pytest.approx(7)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_several_sources_take_the_nearest():
     field = cost_field(parse('.......'), 0.5, [(0, 0), (0, 6)])
     assert_field(field, [[0.0, 0.5, 1.0, 1.5, 1.0, 0.5, 0.0]])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_source_on_a_blocked_cell_is_ignored():
     field = cost_field(parse('#..'), 1.0, [(0, 0), (0, 2)])
     assert_field(field, [[INF, 1, 0]])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_no_sources_gives_all_inf():
     field = cost_field(parse('...\n...'), 1.0, [])
     assert np.isinf(field).all()
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_accepts_a_generator_of_sources():
     field = cost_field(parse('...'), 1.0, (cell for cell in [(0, 0)]))
     assert_field(field, [[0, 1, 2]])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_field_does_not_change_the_blocked_array():
     blocked = parse(EXAMPLE)
     before = blocked.copy()
@@ -187,11 +205,13 @@ def test_cost_field_does_not_change_the_blocked_array():
 
 # --- wall_distance ------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_wall_distance_along_a_row():
     field = wall_distance(parse('#....'), 0.1)
     assert_field(field, [[0.0, 0.1, 0.2, 0.3, 0.4]])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_wall_distance_around_one_occupied_cell():
     field = wall_distance(parse('...\n.#.\n...'), 0.5)
     assert_field(field, np.array([
@@ -201,6 +221,7 @@ def test_wall_distance_around_one_occupied_cell():
     ]) * 0.5)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_wall_distance_takes_the_nearest_wall():
     field = wall_distance(parse("""
         #.....
@@ -215,12 +236,14 @@ def test_wall_distance_takes_the_nearest_wall():
     ])
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_wall_distance_without_walls_is_all_inf():
     assert np.isinf(wall_distance(parse('...\n...'), 1.0)).all()
 
 
 # --- descend ------------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_descend_ends_at_the_source():
     field = cost_field(parse(EXAMPLE), 1.0, [(0, 5)])
     path = descend(field, (3, 0))
@@ -229,6 +252,7 @@ def test_descend_ends_at_the_source():
     assert path[-1] == (0, 5)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_descend_from_every_reachable_cell():
     field = cost_field(parse(EXAMPLE), 1.0, [(0, 5)])
     for r, c in np.argwhere(np.isfinite(field)):
@@ -238,16 +262,19 @@ def test_descend_from_every_reachable_cell():
         assert_valid_descent(field, path, start)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_descend_takes_the_nearest_of_several_sources():
     field = cost_field(parse('.......'), 1.0, [(0, 0), (0, 6)])
     assert descend(field, (0, 4)) == [(0, 4), (0, 5), (0, 6)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_descend_from_the_source_is_just_the_source():
     field = cost_field(parse(EXAMPLE), 1.0, [(0, 5)])
     assert descend(field, (0, 5)) == [(0, 5)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_descend_does_not_cut_corners():
     # The diagonal (0, 0) has the lowest value, but (0, 1) beside the step is inf.
     field = np.array([
@@ -257,6 +284,7 @@ def test_descend_does_not_cut_corners():
     assert descend(field, (1, 1)) == [(1, 1), (1, 0), (0, 0)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_descend_from_an_unreachable_cell_is_none():
     field = cost_field(parse("""
         .....
@@ -267,6 +295,7 @@ def test_descend_from_an_unreachable_cell_is_none():
     assert descend(field, (2, 2)) is None
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_descend_from_a_blocked_cell_is_none():
     field = cost_field(parse(EXAMPLE), 1.0, [(0, 5)])
     assert descend(field, (1, 2)) is None
@@ -274,10 +303,12 @@ def test_descend_from_a_blocked_cell_is_none():
 
 # --- nearest_free_cell --------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_nearest_free_cell_of_a_free_cell_is_itself():
     assert nearest_free_cell(parse('...\n...'), (1, 2), 3) == (1, 2)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_nearest_free_cell_steps_out_of_a_wall():
     blocked = parse("""
         .....
@@ -287,6 +318,7 @@ def test_nearest_free_cell_steps_out_of_a_wall():
     assert nearest_free_cell(blocked, (2, 0), 5) == (0, 0)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_nearest_free_cell_is_euclidean_nearest():
     # From (3, 3): (1, 1) is first in row order but 2.83 cells away, (3, 1) is 2 away.
     blocked = parse("""
@@ -299,6 +331,7 @@ def test_nearest_free_cell_is_euclidean_nearest():
     assert nearest_free_cell(blocked, (3, 3), 5) == (3, 1)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_nearest_free_cell_respects_max_radius():
     # The only free cell is 4 * sqrt(2) = 5.66 cells away.
     blocked = parse("""
@@ -313,10 +346,12 @@ def test_nearest_free_cell_respects_max_radius():
     assert nearest_free_cell(blocked, (4, 4), 6) == (0, 0)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_nearest_free_cell_from_outside_the_grid():
     assert nearest_free_cell(parse('.....\n.....'), (-1, 2), 3) == (0, 2)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_nearest_free_cell_returns_plain_ints():
     cell = nearest_free_cell(parse('#.'), (0, 0), 2)
     assert cell == (0, 1)
@@ -325,10 +360,12 @@ def test_nearest_free_cell_returns_plain_ints():
 
 # --- cost_at ------------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def make_grid(text, resolution, origin):
     return GridMap(parse(text), resolution, origin)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_at_reads_the_cell_under_the_point():
     grid = make_grid('...\n.#.', 0.5, (-1.0, 2.0))
     field = cost_field(grid.occupied, grid.resolution, [(0, 0)])
@@ -339,12 +376,14 @@ def test_cost_at_reads_the_cell_under_the_point():
     assert isinstance(cost_at(field, grid, (0.2, 2.4)), float)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_at_blocked_or_unreachable_is_none():
     grid = make_grid('...\n.#.', 0.5, (-1.0, 2.0))
     field = cost_field(grid.occupied, grid.resolution, [(0, 0)])
     assert cost_at(field, grid, (-0.3, 2.7)) is None
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_cost_at_outside_the_grid_is_none():
     grid = make_grid('...\n...', 0.5, (-1.0, 2.0))
     field = cost_field(grid.occupied, grid.resolution, [(0, 0)])
@@ -355,11 +394,13 @@ def test_cost_at_outside_the_grid_is_none():
 
 # --- w1 -----------------------------------------------------------------------------------
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @pytest.fixture(scope='module')
 def w1_planning_grid():
     return GridMap.from_yaml(W1_YAML).downsample(10).inflate(0.30)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def test_full_field_on_w1_is_fast(w1_planning_grid):
     grid = w1_planning_grid
     # The two spawn positions in w1 are (0, -1) and (0, 1).
@@ -383,10 +424,12 @@ def test_full_field_on_w1_is_fast(w1_planning_grid):
 # Resolution 1 m and origin (0, 0) unless stated otherwise: the centre of cell (r, c)
 # is (c + 0.5, r + 0.5).
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def centre(r, c):
     return (c + 0.5, r + 0.5)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def disc(grid, point, radius):
     """Cells whose centre is within radius of point, worked out cell by cell."""
     rows, cols = grid.occupied.shape
@@ -398,6 +441,7 @@ def disc(grid, point, radius):
     return mask
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def crosses_blocked(grid, blocked, a, b):
     """
     Check independently whether the line runs through blocked cells for more than 0.3 cell.
@@ -422,6 +466,7 @@ def crosses_blocked(grid, blocked, a, b):
     return False
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def assert_clear_path(grid, blocked, path):
     """Every point is in a free cell and no segment runs through a blocked cell."""
     for x, y in path:
@@ -431,6 +476,7 @@ def assert_clear_path(grid, blocked, path):
         assert not crosses_blocked(grid, blocked, a, b)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 def path_length(path):
     return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(path, path[1:]))
 
@@ -438,6 +484,7 @@ def path_length(path):
 OPEN = '\n'.join(['...........'] * 7)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_in_open_space_is_a_straight_line():
     grid = make_grid('........\n........\n........', 1.0, (0.0, 0.0))
@@ -445,6 +492,7 @@ def test_plan_in_open_space_is_a_straight_line():
     assert planner.plan(grid, (0.5, 1.5), (7.5, 1.5)) == [(0.5, 1.5), (7.5, 1.5)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_goes_around_a_wall():
     grid = make_grid("""
@@ -464,6 +512,7 @@ def test_plan_goes_around_a_wall():
     assert_clear_path(grid, grid.occupied, path)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_avoid_disc_forces_a_detour():
     grid = make_grid(OPEN, 1.0, (0.0, 0.0))
@@ -481,6 +530,7 @@ def test_plan_avoid_disc_forces_a_detour():
     assert_clear_path(grid, disc(grid, other, 1.5), path)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_respects_several_avoid_points():
     grid = make_grid(OPEN, 1.0, (0.0, 0.0))
@@ -492,6 +542,7 @@ def test_plan_respects_several_avoid_points():
     assert_clear_path(grid, blocked, path)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_avoid_disc_is_for_that_call_only():
     grid = make_grid(OPEN, 1.0, (0.0, 0.0))
@@ -505,6 +556,7 @@ def test_plan_avoid_disc_is_for_that_call_only():
     assert planner.plan(grid, start, goal) == [start, goal]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_snaps_start_and_goal_out_of_walls():
     # Start and goal lie in the blocked first and last column; each moves one cell in.
@@ -517,6 +569,7 @@ def test_plan_snaps_start_and_goal_out_of_walls():
     assert planner.plan(grid, centre(1, 0), centre(1, 5)) == [centre(1, 1), centre(1, 4)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_start_or_goal_too_deep_in_a_wall_is_none():
     # The nearest free cell is 4 cells away from (1, 0).
@@ -531,6 +584,7 @@ def test_plan_start_or_goal_too_deep_in_a_wall_is_none():
     assert path == [centre(1, 4), centre(1, 7)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_snapping_ignores_the_discs():
     # Start and goal are snapped on the grid alone, so a start or goal inside a disc
@@ -542,6 +596,7 @@ def test_plan_snapping_ignores_the_discs():
     assert planner.plan(grid, start, goal, avoid=[centre(3, 9)]) is None
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_without_a_path_is_none():
     grid = make_grid("""
@@ -555,6 +610,7 @@ def test_plan_without_a_path_is_none():
     assert planner.plan(grid, centre(2, 4), centre(0, 0)) is None
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_start_and_goal_in_the_same_cell():
     grid = make_grid('...\n...', 1.0, (0.0, 0.0))
@@ -562,6 +618,7 @@ def test_plan_start_and_goal_in_the_same_cell():
     assert planner.plan(grid, (1.2, 0.3), (1.8, 0.7)) == [centre(0, 1)]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_uses_metric_coordinates():
     # Resolution 0.5 m and an origin away from (0, 0): cell (1, 1) is centred at (-0.25, 2.75).
@@ -571,12 +628,14 @@ def test_plan_uses_metric_coordinates():
     assert path == [pytest.approx((-0.25, 2.75)), pytest.approx((0.75, 2.75))]
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @pytest.fixture(scope='module')
 def w1_grids():
     static = GridMap.from_yaml(W1_YAML).downsample(10)
     return static, static.inflate(0.30)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_on_w1_with_start_and_goal_inside_inflated_walls(w1_grids):
     static, grid = w1_grids
@@ -598,6 +657,7 @@ def test_plan_on_w1_with_start_and_goal_inside_inflated_walls(w1_grids):
     assert_clear_path(grid, grid.occupied, path)
 
 
+# AI use: written by Claude (claude.ai); reviewed and run by Torgeir (NAV-03).
 @needs_planner
 def test_plan_on_w1_avoids_the_other_robot(w1_grids):
     _, grid = w1_grids

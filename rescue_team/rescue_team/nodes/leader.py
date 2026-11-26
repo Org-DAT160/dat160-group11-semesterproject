@@ -234,7 +234,8 @@ class Leader(Node):
         """
         Report due markers. Before Started: check the start conditions; after: send Tick.
 
-        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        AI use: first draft by Claude Opus 5.5; reviewed by Jonas. Jonas wrote
+        the viewpoint computation before Started (MIS-06).
         """
         try:
             now = self.now()
@@ -286,7 +287,8 @@ class Leader(Node):
         """
         Return the start conditions that do not hold yet (empty when ready).
 
-        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        AI use: first draft by Claude Opus 5.5; reviewed by Jonas. Jonas wrote
+        the 'viewpoints not computed' condition (MIS-06).
         """
         unmet = []
         if now <= 0.0:
@@ -309,7 +311,8 @@ class Leader(Node):
         """
         Send Started with the robots' start positions and the viewpoint passes.
 
-        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        AI use: first draft by Claude Opus 5.5; reviewed by Jonas. Jonas wrote
+        sending the viewpoint passes (MIS-06).
         """
         robots = {robot: self.positions[robot] for robot in self.robots}
         passes = self.passes
@@ -359,7 +362,8 @@ class Leader(Node):
 
         Read from the robot's cost field, so detours around walls count (section 8.2).
 
-        AI use: first draft by Claude Opus 5.5; reviewed and adapted by Jonas.
+        AI use: logic written by Jonas; docstring by Claude Opus 5.5, which also explained the
+        specification and reviewed the change.
         """
         field = self.robot_field(robot, around_peer=robot in self.avoid_peer)
         if field is None:

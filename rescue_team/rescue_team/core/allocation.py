@@ -6,6 +6,8 @@ When a robot has no goal, the leader asks the allocator for its next viewpoint
 the travel distance comes in as a cost function, so the allocator can be tested
 with pytest and a fake cost function.
 """
+# AI-use declaration (report Appendix D): the code in this module was written by hand by
+# Torgeir (MIS-05); Claude (claude.ai) was used for explanation and review, and wrote test/test_allocation.py.
 
 from typing import Dict, List, Optional, Sequence, Set
 
@@ -15,9 +17,11 @@ from rescue_team.core.geometry import CostFn, Point
 class GreedyAllocator:
     """Gives each idle robot the cheapest free viewpoint and reserves it."""
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
     def __init__(self) -> None:
         self.set_targets([])
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
     def set_targets(self, targets: Sequence[Point]) -> None:
         """Load the viewpoints of a pass; nothing is visited, failed or reserved."""
         self._targets: List[Point] = list(targets)
@@ -29,6 +33,7 @@ class GreedyAllocator:
         # at most one reservation and complete and release only know the robot.
         self._reserved: Dict[str, Point] = {}
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
     def free_count(self) -> int:
         """Return the number of viewpoints that are neither visited, dropped nor reserved."""
         count = 0
@@ -37,6 +42,7 @@ class GreedyAllocator:
                 count = count + 1
         return count
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
     def next_target(self, robot: str, cost: CostFn) -> Optional[Point]:
         """
         Reserve and return the cheapest free viewpoint for robot, or None.
@@ -68,6 +74,7 @@ class GreedyAllocator:
         self._reserved[robot] = cheapest_target
         return cheapest_target
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
     def complete(self, robot: str, success: bool) -> None:
         """
         End the robot's reservation.
@@ -87,11 +94,13 @@ class GreedyAllocator:
         else:
             self._failed_by[target] = robot
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
     def release(self, robot: str) -> None:
         """Free the robot's reservation without marking the viewpoint (meeting start)."""
         # The default None makes this do nothing when the robot has no reservation.
         self._reserved.pop(robot, None)
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (MIS-05).
     def _is_free(self, target: Point) -> bool:
         if target in self._visited:
             return False

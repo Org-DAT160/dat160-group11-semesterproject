@@ -6,6 +6,8 @@ the static grid and inflated so the robot can be planned as a point
 (ARCHITECTURE.md section 6.1). No ROS imports: it works on plain numbers and
 NumPy arrays, so it can be tested with pytest without starting ROS.
 """
+# AI-use declaration (report Appendix D): the code in this module was written by hand by
+# Torgeir (NAV-02); Claude (claude.ai) was used for explanation and review, and wrote test/test_grid.py.
 import math
 import os
 
@@ -15,11 +17,13 @@ import numpy as np
 class GridMap:
     """Occupancy grid with metric placement."""
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     def __init__(self, occupied, resolution, origin):
         self.occupied = occupied
         self.resolution = resolution
         self.origin = origin
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     @classmethod
     def from_occupancy_grid(cls, data, width, height,
                             resolution, origin,
@@ -35,6 +39,7 @@ class GridMap:
 
         return cls(occupied, float(resolution), (float(origin[0]), float(origin[1])))
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     @classmethod
     def from_yaml(cls, yaml_path):
         """
@@ -70,6 +75,7 @@ class GridMap:
         return cls.from_occupancy_grid(values.flatten(), width, height,
                                        meta['resolution'], meta['origin'][:2])
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     def world_to_cell(self, x, y):
         """Convert a point in metres to the (row, col) of the cell that contains it."""
         origin_x = self.origin[0]
@@ -81,6 +87,7 @@ class GridMap:
 
         return row, col
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     def cell_to_world(self, row, col):
         """Convert a (row, col) cell to the point in metres at the centre of the cell."""
         origin_x = self.origin[0]
@@ -92,6 +99,7 @@ class GridMap:
 
         return x, y
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     def in_bounds(self, row, col):
         """Return True if the cell (row, col) lies inside the grid."""
         rows, cols = self.occupied.shape
@@ -100,6 +108,7 @@ class GridMap:
 
         return row_ok and col_ok
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     def is_known_wall(self, point):
         """Return True if the point is in an occupied cell or outside the grid."""
         x, y = point
@@ -110,6 +119,7 @@ class GridMap:
 
         return bool(self.occupied[row, col])
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     def downsample(self, factor):
         """Return a coarser grid. A coarse cell is occupied if any of its fine cells is."""
         rows, cols = self.occupied.shape
@@ -125,6 +135,7 @@ class GridMap:
 
         return GridMap(coarse, self.resolution * factor, self.origin)
 
+    # AI use: none - hand-written by Torgeir; Claude: explanation and review only (NAV-02).
     def inflate(self, radius):
         """Return a grid where every occupied cell is grown by radius metres (circular)."""
         r = radius / self.resolution + 1e-9
